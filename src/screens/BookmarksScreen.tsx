@@ -800,6 +800,7 @@ export const BookmarksScreen: React.FC<BookmarksScreenProps> = ({ navigation }) 
     <SafeAreaView style={styles.safeArea}>
       <Header
         title="生词本"
+        onBack={() => navigation.goBack()}
         subtitle={
           initialLoading && totalCount === 0
             ? '正在加载...'

@@ -12,6 +12,7 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
@@ -92,7 +93,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   } = useProgress();
 
   // 登录态恢复中（避免未登录提示闪一下）
-  const { isLoading: authLoading } = useAuth();
+  const { user: authUser, isLoading: authLoading } = useAuth();
+
+  /** 用户资料里的 vip 字段为 1 表示付费会员 */
+  const isVip = Number(authUser?.vip) === 1;
+  /** 手机号脱敏 */
+  const maskMobile = (m?: string) => (m ? m.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') : '');
+  /** 顶部用户卡片显示的名字 */
+  const displayName = isLoggedIn
+    ? authUser?.nickname || authUser?.loginName || maskMobile(authUser?.mobile) || '糍粑学员'
+    : '未登录';
 
   // 顶部切换: 我的卡组 (/anki/pack.json, parentId = 0)
   const [topPacks, setTopPacks] = useState<RemotePack[]>([]);
@@ -699,6 +709,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     });
   };
 
+  /** 打开生词本列表 */
+  const handleOpenBookmarks = () => {
+    if (!isLoggedIn) {
+      promptLogin();
+      return;
+    }
+    navigation.navigate('Bookmarks');
+  };
+
+  /** 打开「我的」页面 */
+  const handleOpenProfile = () => {
+    if (!isLoggedIn) {
+      navigation.navigate('Login');
+      return;
+    }
+    navigation.navigate('Profile');
+  };
+
+  /** 打开电脑端插件站点（边看剧边添加生词） */
+  const handleOpenSite = () => {
+    Linking.openURL('https://www.cibaen.com').catch(() => {
+      showNotice('打不开链接', '请手动在浏览器访问 www.cibaen.com');
+    });
+  };
+
   /**
    * 分类卡组列表加载完成后自动选中默认卡组（用户没手动点过时）:
    *   ① 闪卡页「继续学习下一个卡组」后 store 里的卡组仍在该列表 -> 保持它
@@ -1017,7 +1052,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           />
         </View>
         <View style={styles.brandTextWrap}>
-          <Text style={styles.brandTitle}>糍粑分类背单词</Text>
+          <Text style={styles.brandTitle} numberOfLines={1}>
+            糍粑看美剧学英语
+          </Text>
         </View>
       </View>
 
@@ -1031,6 +1068,104 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
     </View>
+  );
+
+  /** 用户信息卡：头像 + 昵称 + 会员/登录入口，点击进入「我的」 */
+  const renderUserCard = () => (
+    <View style={styles.userCard}>
+      {authLoading ? (
+        <View style={styles.userCardLoading}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.userCardLoadingText}>正在读取登录状态…</Text>
+        </View>
+      ) : (
+        <>
+          <TouchableOpacity
+            style={styles.userCardMain}
+            activeOpacity={0.8}
+            onPress={handleOpenProfile}
+          >
+            <View style={styles.avatarWrap}>
+              <View style={[styles.avatarCircle, isVip && styles.avatarCircleVip]}>
+                <Ionicons
+                  name={isLoggedIn ? 'person' : 'log-in-outline'}
+                  size={26}
+                  color={isVip ? Colors.gold : Colors.primary}
+                />
+              </View>
+              {isVip ? (
+                <View style={styles.avatarVipBadge}>
+                  <Ionicons name="diamond" size={9} color="#FFFFFF" />
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.userInfo}>
+              <View style={styles.userNameRow}>
+                <Text style={styles.userName} numberOfLines={1}>
+                  {displayName}
+                </Text>
+                {isLoggedIn ? (
+                  <TouchableOpacity
+                    style={[styles.vipTag, isVip ? styles.vipTagActive : styles.vipTagUpgrade]}
+                    onPress={() => navigation.navigate('Purchase')}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={isVip ? 'diamond' : 'diamond-outline'}
+                      size={11}
+                      color={isVip ? '#FFFFFF' : Colors.gold}
+                    />
+                    <Text style={[styles.vipTagText, isVip && styles.vipTagTextActive]}>
+                      {isVip ? 'VIP 会员' : '升级会员'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <Text style={styles.userSub} numberOfLines={1}>
+                {isLoggedIn
+                  ? authUser?.mobile
+                    ? maskMobile(authUser.mobile)
+                    : authUser?.email || '已登录'
+                  : '登录后可同步词书与多端学习进度'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {isLoggedIn ? (
+            <TouchableOpacity
+              style={styles.profileEntry}
+              onPress={() => navigation.navigate('Profile')}
+              activeOpacity={0.7}
+              accessibilityLabel="我的"
+            >
+              <Ionicons name="settings-outline" size={19} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.loginBtnSmall}
+              onPress={() => navigation.navigate('Login')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loginBtnSmallText}>登录</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
+    </View>
+  );
+
+  /** 底部说明：电脑端 Chrome 插件用法（边看剧边加生词） */
+  const renderTipCard = () => (
+    <TouchableOpacity style={styles.tipCard} onPress={handleOpenSite} activeOpacity={0.85}>
+      <View style={styles.tipHeader}>
+        <Ionicons name="bulb-outline" size={16} color={Colors.accent} />
+        <Text style={styles.tipTitle}>边看美剧，边攒生词</Text>
+      </View>
+      <Text style={styles.tipText}>
+        电脑访问 www.cibaen.com 安装 Chrome 浏览器插件后，即可在爱奇艺、B 站观看带字幕的视频时，边看视频边添加英文生词。然后在手机上碎片时间记忆单词。
+      </Text>
+    </TouchableOpacity>
   );
 
   /** 生词本统计格子: 学习 / 已学习 / 总数量 */
@@ -1061,12 +1196,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={styles.loginStateDesc}>正在读取登录状态…</Text>
         </View>
       ) : !isLoggedIn ? (
-        /* 未登录状态 */
+        /* 未登录状态：只保留一行说明 + 登录入口，账号信息统一由顶部用户卡承载 */
         <>
           <View style={styles.dashHeader}>
+            <View style={styles.dashTitleIcon}>
+              <Ionicons name="book-outline" size={16} color="#FFFFFF" />
+            </View>
             <View style={styles.dashTitleWrap}>
-              <Text style={styles.dashTitle}>今日学习-生词本</Text>
-              <Text style={styles.dashSubtitle}>未登录，登录后即可开始今日学习</Text>
+              <Text style={styles.dashTitle}>生词本</Text>
+              <Text style={styles.dashSubtitle}>登录后开始今日学习</Text>
             </View>
             <View style={styles.unloginTag}>
               <Ionicons name="person-outline" size={13} color={Colors.textMuted} />
@@ -1074,42 +1212,39 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          <View style={styles.loginStateWrap}>
-            <View style={styles.loginStateIcon}>
-              <Ionicons name="log-in-outline" size={30} color={Colors.textMuted} />
-            </View>
-            <Text style={styles.loginStateTitle}>登录后开始今日学习</Text>
-            <Text style={styles.loginStateDesc}>
-              登录后可获取在线卡组的今日学习单词，并同步学习进度
-            </Text>
-            <TouchableOpacity
-              style={styles.loginMainBtn}
-              onPress={() => navigation.navigate('Login')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="log-in-outline" size={17} color="#FFFFFF" />
-              <Text style={styles.loginMainBtnText}>立即登录</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.loginMainBtn}
+            onPress={() => navigation.navigate('Login')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="log-in-outline" size={17} color="#FFFFFF" />
+            <Text style={styles.loginMainBtnText}>立即登录，开始背词</Text>
+          </TouchableOpacity>
         </>
       ) : (
         /* 已登录状态: 数据全部取自生词本 */
         <>
-          {/* 第一行: 标题 + 今日目标完成度 */}
+          {/* 第一行: 标题 + 今日目标完成度（点标题进入生词本列表） */}
           <View style={styles.dashHeader}>
-            <View style={styles.dashTitleIcon}>
-              <Ionicons name="book-outline" size={16} color="#FFFFFF" />
-            </View>
-            <View style={styles.dashTitleWrap}>
-              <Text style={styles.dashTitle}>今日学习-生词本</Text>
-              <Text style={styles.dashSubtitle} numberOfLines={1}>
-                {loadingNotebook
-                  ? '正在获取生词本数据…'
-                  : notebook
-                  ? `今日目标 ${notebook.dayLimit} 个生词`
-                  : '生词本数据获取失败'}
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={styles.dashHeaderLeft}
+              activeOpacity={0.8}
+              onPress={handleOpenBookmarks}
+            >
+              <View style={styles.dashTitleIcon}>
+                <Ionicons name="book-outline" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.dashTitleWrap}>
+                <Text style={styles.dashTitle}>生词本</Text>
+                <Text style={styles.dashSubtitle} numberOfLines={1}>
+                  {loadingNotebook
+                    ? '正在获取生词本数据…'
+                    : notebook
+                    ? `今日目标 ${notebook.dayLimit} 个生词 · 共 ${notebook.totalWords} 词`
+                    : '生词本数据获取失败'}
+                </Text>
+              </View>
+            </TouchableOpacity>
             {!loadingNotebook && notebook?.dayLimit ? (
               <View style={styles.dashPercentBadge}>
                 <Text style={styles.dashPercentText}>
@@ -1203,7 +1338,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               ) : (
                 <Ionicons name="flash" size={18} color="#FFFFFF" />
               )}
-              <Text style={styles.primaryBtnText}>开始背词</Text>
+              <Text style={styles.primaryBtnText}>开始学习</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -1396,11 +1531,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 今日学习看板 */}
+        {/* ① 用户信息：头像 / 昵称 / 会员状态 / 登录入口 */}
+        {renderUserCard()}
+
+        {/* ② 生词本：今日目标与学习统计 */}
         {renderDashboardCard()}
 
-        {/* 分类卡组：标题 + 整体进度 + tab + 列表，统一包成一张卡片 */}
+        {/* ③ 我的卡组：分类卡组进度与列表（标题 + 整体进度 + tab + 列表） */}
         {renderPacksCard()}
+
+        {/* ④ 电脑端插件说明 */}
+        {renderTipCard()}
       </ScrollView>
 
       <ConfirmDialog
@@ -1465,7 +1606,7 @@ const styles = StyleSheet.create({
     height: 26,
   },
   brandTitle: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: '800',
     color: Colors.textPrimary,
     letterSpacing: 0.5,
@@ -2005,5 +2146,169 @@ const styles = StyleSheet.create({
   footerLoading: {
     paddingVertical: 20,
     alignItems: 'center',
+  },
+
+  // ── 顶部用户信息卡 ──
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 18,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  userCardLoading: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  userCardLoadingText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  userCardMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  avatarWrap: {
+    width: 48,
+    height: 48,
+    marginRight: 12,
+  },
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // 会员头像：金环 + 金色浅底
+  avatarCircleVip: {
+    backgroundColor: Colors.gold + '1A',
+    borderWidth: 2,
+    borderColor: Colors.gold,
+  },
+  avatarVipBadge: {
+    position: 'absolute',
+    right: 10,
+    bottom: -2,
+    width: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: Colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.card,
+  },
+  userInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    flexShrink: 1,
+  },
+  vipTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 11,
+    gap: 3,
+  },
+  vipTagActive: {
+    backgroundColor: Colors.gold,
+  },
+  vipTagUpgrade: {
+    borderWidth: 1,
+    borderColor: Colors.gold + '66',
+    backgroundColor: Colors.gold + '14',
+  },
+  vipTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.gold,
+  },
+  vipTagTextActive: {
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  userSub: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 3,
+  },
+  profileEntry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 10,
+    paddingVertical: 6,
+  },
+  loginBtnSmall: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  loginBtnSmallText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // ── 底部说明卡（电脑端插件） ──
+  tipCard: {
+    backgroundColor: Colors.backgroundAlt,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+  },
+  tipText: {
+    fontSize: 13,
+    lineHeight: 21,
+    color: Colors.textSecondary,
+  },
+  // 生词本卡片标题行左侧（可点击进入列表）
+  dashHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
   },
 });

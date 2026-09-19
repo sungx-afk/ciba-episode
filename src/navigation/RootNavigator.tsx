@@ -1,9 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../theme/colors';
 
 import { HomeScreen } from '../screens/HomeScreen';
@@ -22,72 +19,13 @@ import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { ChangePasswordScreen } from '../screens/auth/ChangePasswordScreen';
 
-const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function MainTabs() {
-  const insets = useSafeAreaInsets();
-  const bottomInset = Number(insets?.bottom) || 0;
-  const tabBarHeight = 60 + bottomInset;
-
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: Colors.card,
-          borderTopColor: Colors.border,
-          borderTopWidth: 1,
-          height: tabBarHeight,
-          paddingBottom: bottomInset,
-        },
-        tabBarItemStyle: {
-          justifyContent: 'center',
-        },
-        tabBarIconStyle: {
-          marginBottom: 2,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          lineHeight: 16,
-          fontWeight: '600',
-        },
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'grid';
-
-          if (route.name === 'HomeTab') {
-            iconName = focused ? 'grid' : 'grid-outline';
-          } else if (route.name === 'BookmarksTab') {
-            iconName = focused ? 'bookmark' : 'bookmark-outline';
-          } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeScreen}
-        options={{ tabBarLabel: '分类' }}
-      />
-      <Tab.Screen
-        name="BookmarksTab"
-        component={BookmarksScreen}
-        options={{ tabBarLabel: '生词本' }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileScreen}
-        options={{ tabBarLabel: '我的' }}
-      />
-    </Tab.Navigator>
-  );
-}
-
+/**
+ * 导航结构：单栈，无底部 tab。
+ * 首页（Home）承载用户信息 / 生词本 / 我的卡组三段内容与电脑端插件说明，
+ * 生词本列表（Bookmarks）与「我的」（Profile）作为二级页面从首页进入。
+ */
 export function RootNavigator() {
   return (
     <NavigationContainer>
@@ -98,7 +36,14 @@ export function RootNavigator() {
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen name="MainTabs" component={MainTabs} />
+        {/* 首屏：首页（唯一入口） */}
+        <Stack.Screen name="Home" component={HomeScreen} />
+
+        {/* 首页二级页面 */}
+        <Stack.Screen name="Bookmarks" component={BookmarksScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+
+        {/* 学习流程 */}
         <Stack.Screen name="WordList" component={WordListScreen} />
         <Stack.Screen
           name="Flashcard"
@@ -110,6 +55,8 @@ export function RootNavigator() {
           component={BookmarkStudyScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
+
+        {/* 词库 / 卡组 / 会员 */}
         <Stack.Screen name="BookSelect" component={BookSelectScreen} />
         <Stack.Screen name="Market" component={MarketScreen} />
         <Stack.Screen
@@ -117,6 +64,8 @@ export function RootNavigator() {
           component={PurchaseScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
+
+        {/* 账号 */}
         <Stack.Screen
           name="Login"
           component={LoginScreen}
@@ -129,11 +78,8 @@ export function RootNavigator() {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
 
-        <Stack.Screen  
-          name="WebPage"
-          component={WebPageScreen}
-          options={{ animation: 'slide_from_right' }}
-        />
+        {/* 内嵌网页（用户协议 / 会员说明等） */}
+        <Stack.Screen name="WebPage" component={WebPageScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
