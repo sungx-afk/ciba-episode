@@ -79,23 +79,23 @@ jobs:
         run: |
           mkdir -p Payload
           cp -r build/App.xcarchive/Products/Applications/*.app Payload/
-          zip -qr CibaEnglish-iOS.ipa Payload
+          zip -qr CibaEnglishEpisode-iOS.ipa Payload
           mkdir -p build-output
-          cp CibaEnglish-iOS.ipa build-output/CibaEnglish-iOS-latest.ipa
+          cp CibaEnglishEpisode-iOS.ipa build-output/CibaEnglishEpisode-iOS-latest.ipa
 
           VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "1.0.0")
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             TAG_VER="${{ github.ref_name }}"
             VERSION="${TAG_VER#v}"
           fi
-          cp CibaEnglish-iOS.ipa "build-output/CibaEnglish-iOS-v${VERSION}.ipa"
+          cp CibaEnglishEpisode-iOS.ipa "build-output/CibaEnglishEpisode-iOS-v${VERSION}.ipa"
           echo "PACKAGE_VERSION=v${VERSION}" >> $GITHUB_ENV
           echo "IOS_READY=true" >> $GITHUB_ENV
 
       - name: Upload IPA to Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CibaEnglish-iOS-IPA
+          name: CibaEnglishEpisode-iOS-IPA
           path: build-output/*.ipa
           retention-days: 30
 
@@ -104,7 +104,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.PACKAGE_VERSION || github.ref_name }}
-          name: 糍粑英语 ${{ env.PACKAGE_VERSION || github.ref_name }}
+          name: 糍粑看美剧学英语 ${{ env.PACKAGE_VERSION || github.ref_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
