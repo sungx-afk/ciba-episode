@@ -20,20 +20,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useProgress } from '../storage/progressStore';
 import { useAuth } from '../context/AuthContext';
 import { packLibrary, RemotePack } from '../services/packLibrary';
-import {
-  fetchBookmarkedWords,
-  fetchNotebookStats,
-  fetchNotebookStudyWords,
-  NotebookStats,
-  BOOKMARK_REVIEW_TODO_TYPES,
-  NOTEBOOK_STUDY_LIMIT,
-} from '../services/bookmarkApi';
-import { Word } from '../types';
+import { fetchNotebookStats, NotebookStats } from '../services/bookmarkApi';
 import { Colors } from '../theme/colors';
 import { ProgressBar } from '../components/ProgressBar';
-
-/** 生词本「复习待办」一次拉取的数量 */
-const NOTEBOOK_REVIEW_LIMIT = 50;
 
 interface HomeScreenProps {
   navigation: any;
@@ -79,12 +68,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   /** 「今日学习-生词本」卡片数据：学习目标 / 已学习 / 总数量 */
   const [notebook, setNotebook] = useState<NotebookStats | null>(null);
   const [loadingNotebook, setLoadingNotebook] = useState(false);
-  /** 生词本复习待办: 学过但还没记住的单词（type = 1/2/3） */
-  const [notebookReviewWords, setNotebookReviewWords] = useState<Word[]>([]);
-  const [notebookReviewTotal, setNotebookReviewTotal] = useState(0);
-  const [loadingNotebookReview, setLoadingNotebookReview] = useState(false);
-  /** 「开始背词」正在拉取生词队列 */
-  const [startingNotebookStudy, setStartingNotebookStudy] = useState(false);
 
   // 已提示过前往卡组市场（避免重复跳转）
   const marketPromptedRef = useRef(false);
@@ -111,8 +94,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   }, [currentTopPack, currentPack, topPacks, setSelectedTop]);
   // 生词本统计请求代次，避免旧结果覆盖新结果
   const notebookReqRef = useRef(0);
-  // 生词本复习待办请求代次
-  const notebookReviewReqRef = useRef(0);
 
   /** 顶部卡组: 我的卡组 */
   const loadTopPacks = useCallback(async () => {
@@ -177,10 +158,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
    */
   const resetAccountScopedUi = () => {
     setNotebook(null);
-    setNotebookReviewWords([]);
-    setNotebookReviewTotal(0);
     setLoadingNotebook(false);
-    setLoadingNotebookReview(false);
     setErrorMsg(null);
     setLastPackName(null);
     justInstalledRef.current = null;
@@ -303,47 +281,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   }, []);
 
-  /** 生词本复习待办：学过但还没记住的单词（type = 1/2/3），数量与队列都用它 */
-  const loadNotebookReview = useCallback(async () => {
-    const req = ++notebookReviewReqRef.current;
-    setLoadingNotebookReview(true);
-    try {
-      const page = await fetchBookmarkedWords({
-        start: 0,
-        limit: NOTEBOOK_REVIEW_LIMIT,
-        types: BOOKMARK_REVIEW_TODO_TYPES,
-      });
-      if (req !== notebookReviewReqRef.current) return;
-      setNotebookReviewWords(page.words);
-      setNotebookReviewTotal(page.total || page.words.length);
-    } catch {
-      if (req !== notebookReviewReqRef.current) return;
-      setNotebookReviewWords([]);
-      setNotebookReviewTotal(0);
-    } finally {
-      setLoadingNotebookReview(false);
-    }
-  }, []);
-
   /** 登录态/账号变化后刷新生词本数据；未登录时清空，避免串账号 */
   useEffect(() => {
     if (authLoading) return;
     if (!isLoggedIn) {
       notebookReqRef.current += 1;
-      notebookReviewReqRef.current += 1;
       setNotebook(null);
-      setNotebookReviewWords([]);
-      setNotebookReviewTotal(0);
       setLoadingNotebook(false);
-      setLoadingNotebookReview(false);
       return;
     }
     loadNotebook();
-    loadNotebookReview();
-  }, [authLoading, isLoggedIn, (user as any)?.id, loadNotebook, loadNotebookReview]);
+  }, [authLoading, isLoggedIn, (user as any)?.id, loadNotebook]);
 
   /**
-   * 从学习页返回时静默刷新：我的卡组总览统计 + 生词本统计与复习待办，
+   * 从学习页返回时静默刷新：我的卡组总览统计 + 生词本统计，
    * 保证卡片上的数字是学完之后的最新数据（首次聚焦跳过，避免重复请求）。
    */
   const focusedOnceRef = useRef(false);
@@ -356,54 +307,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       if (!isLoggedIn) return;
       loadTopPacks();
       loadNotebook();
-      loadNotebookReview();
-    }, [isLoggedIn, loadTopPacks, loadNotebook, loadNotebookReview])
+    }, [isLoggedIn, loadTopPacks, loadNotebook])
   );
-
-  /**
-   * 「今日学习-生词本」开始背词:
-   * GET /anki/pack/{生词本}/learn.json 取今日待学生词，直接进入生词本复习页。
-   */
-  const handleStartNotebookStudy = useCallback(async () => {
-    if (!isLoggedIn) {
-      promptLogin();
-      return;
-    }
-    setStartingNotebookStudy(true);
-    try {
-      const { words } = await fetchNotebookStudyWords({
-        start: 0,
-        limit: NOTEBOOK_STUDY_LIMIT,
-      });
-      if (!words.length) {
-        showNotice('太棒了', '生词本今日没有待学习的单词');
-        return;
-      }
-      navigation.navigate('BookmarkStudy', {
-        words,
-        startIndex: 0,
-        total: words.length,
-      });
-    } catch (e: any) {
-      showNotice('加载失败', e?.message || '获取生词本学习单词失败');
-    } finally {
-      setStartingNotebookStudy(false);
-    }
-  }, [isLoggedIn, navigation, showNotice]);
-
-  /** 生词本复习待办: 用「学过但还没记住」的生词直接进入生词本复习页 */
-  const handleStartNotebookReview = useCallback(() => {
-    if (!notebookReviewWords.length) {
-      showNotice('太棒了', '生词本暂时没有需要复习的单词');
-      return;
-    }
-    navigation.navigate('BookmarkStudy', {
-      words: notebookReviewWords,
-      startIndex: 0,
-      total: notebookReviewTotal,
-      types: BOOKMARK_REVIEW_TODO_TYPES,
-    });
-  }, [notebookReviewWords, notebookReviewTotal, navigation, showNotice]);
 
   /**
    * 我的卡组总览：全部顶层卡组（parentId = 0）的汇总统计。
@@ -576,36 +481,41 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  /** 生词本统计格子: 学习 / 已学习 / 总数量 */
-  const renderNotebookStat = (
-    label: string,
-    value: number | string,
-    icon: keyof typeof Ionicons.glyphMap,
-    accent: string
-  ) => (
-    <View style={styles.notebookStatCell}>
-      <View style={[styles.notebookStatIcon, { backgroundColor: `${accent}1F` }]}>
-        <Ionicons name={icon} size={14} color={accent} />
-      </View>
-      <Text style={styles.notebookStatValue} numberOfLines={1}>
+  /** 生词本指标: 学习目标 / 已学习 / 总数量，一行三列、竖线分隔 */
+  const renderNotebookMetric = (label: string, value: number | string, accent: string) => (
+    <View style={styles.metricItem}>
+      <Text style={[styles.metricValue, { color: accent }]} numberOfLines={1}>
         {value}
       </Text>
-      <Text style={styles.notebookStatLabel}>{label}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 
-  /** 今日学习看板卡片（数据全部来自生词本） */
-  const renderDashboardCard = () => (
-    <View style={styles.dashboardCard}>
-      {authLoading ? (
-        /* 登录状态读取中 */
-        <View style={styles.loginStateWrap}>
-          <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={styles.loginStateDesc}>正在读取登录状态…</Text>
+  /**
+   * 生词本卡片：布局与「我的卡组」卡片保持一致
+   * （标题行 + 进度条 + 指标行 + 底部入口），整卡点击进入生词本。
+   */
+  const renderDashboardCard = () => {
+    const learned = notebook?.learnedToday ?? 0;
+    const dayLimit = notebook?.dayLimit ?? 0;
+    const progress = dayLimit ? Math.min(1, learned / dayLimit) : 0;
+
+    if (authLoading) {
+      /* 登录状态读取中 */
+      return (
+        <View style={styles.dashboardCard}>
+          <View style={styles.loginStateWrap}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+            <Text style={styles.loginStateDesc}>正在读取登录状态…</Text>
+          </View>
         </View>
-      ) : !isLoggedIn ? (
-        /* 未登录状态：只保留一行说明 + 登录入口，账号信息统一由顶部用户卡承载 */
-        <>
+      );
+    }
+
+    if (!isLoggedIn) {
+      /* 未登录状态：一行说明 + 登录入口，账号信息统一由顶部用户卡承载 */
+      return (
+        <View style={styles.dashboardCard}>
           <View style={styles.dashHeader}>
             <View style={styles.dashTitleIcon}>
               <Ionicons name="book-outline" size={16} color="#FFFFFF" />
@@ -628,131 +538,71 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Ionicons name="log-in-outline" size={17} color="#FFFFFF" />
             <Text style={styles.loginMainBtnText}>立即登录，开始背词</Text>
           </TouchableOpacity>
-        </>
-      ) : (
-        /* 已登录状态: 数据全部取自生词本 */
-        <>
-          {/* 第一行: 标题 + 今日目标完成度（点标题进入生词本列表） */}
-          <View style={styles.dashHeader}>
-            <TouchableOpacity
-              style={styles.dashHeaderLeft}
-              activeOpacity={0.8}
-              onPress={handleOpenBookmarks}
-            >
-              <View style={styles.dashTitleIcon}>
-                <Ionicons name="book-outline" size={16} color="#FFFFFF" />
-              </View>
-              <View style={styles.dashTitleWrap}>
-                <Text style={styles.dashTitle}>生词本</Text>
-                <Text style={styles.dashSubtitle} numberOfLines={1}>
-                  {loadingNotebook
-                    ? '正在获取生词本数据…'
-                    : notebook
-                    ? `今日目标 ${notebook.dayLimit} 个生词 · 共 ${notebook.totalWords} 词`
-                    : '生词本数据获取失败'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            {!loadingNotebook && notebook?.dayLimit ? (
-              <View style={styles.dashPercentBadge}>
-                <Text style={styles.dashPercentText}>
-                  {Math.round(
-                    Math.min(1, (notebook?.learnedToday || 0) / notebook.dayLimit) * 100
-                  )}
-                  %
-                </Text>
-              </View>
-            ) : null}
-          </View>
+        </View>
+      );
+    }
 
-          {/* 第二行: 学习 / 已学习 / 总数量 */}
-          <View style={styles.notebookStatsRow}>
-            {renderNotebookStat(
-              '学习目标',
-              notebook?.dayLimit ?? '-',
-              'flag-outline',
-              Colors.primary
-            )}
-            {renderNotebookStat(
-              '已学习',
-              notebook?.learnedToday ?? '-',
-              'checkmark-circle-outline',
-              Colors.success
-            )}
-            {renderNotebookStat(
-              '总数量',
-              notebook ? `${notebook.notRemembered}/${notebook.totalWords}` : '-',
-              'library-outline',
-              Colors.accent
-            )}
+    /* 已登录: 数据全部取自生词本 */
+    return (
+      <TouchableOpacity
+        style={styles.dashboardCard}
+        onPress={handleOpenBookmarks}
+        activeOpacity={0.85}
+      >
+        {/* 第一行: 标题 + 今日目标完成度 + 进入箭头 */}
+        <View style={styles.dashHeader}>
+          <View style={styles.dashTitleIcon}>
+            <Ionicons name="book-outline" size={16} color="#FFFFFF" />
           </View>
-
-          {/* 今日目标完成进度: 已学习 / 学习目标 */}
-          <View style={styles.dashProgressTrack}>
-            <ProgressBar
-              progress={
-                notebook?.dayLimit
-                  ? Math.min(1, (notebook?.learnedToday || 0) / notebook.dayLimit)
-                  : 0
-              }
-              height={8}
-              color={Colors.primary}
-            />
-          </View>
-          <View style={styles.dashProgressMeta}>
-            <Text style={styles.dashProgressMetaText}>
-              今日已学 {notebook?.learnedToday ?? 0}
-              {notebook?.dayLimit ? ` / ${notebook.dayLimit}` : ''} 词
-            </Text>
-            <Text style={styles.dashProgressMetaText}>
-              生词本共 {notebook?.totalWords ?? 0} 词
+          <View style={styles.dashTitleWrap}>
+            <Text style={styles.dashTitle}>生词本</Text>
+            <Text style={styles.dashSubtitle} numberOfLines={1}>
+              {loadingNotebook
+                ? '正在获取生词本数据…'
+                : notebook
+                ? `今日目标 ${dayLimit} 个生词 · 共 ${notebook.totalWords} 词`
+                : '生词本数据获取失败'}
             </Text>
           </View>
+          {!loadingNotebook && dayLimit ? (
+            <View style={styles.dashPercentBadge}>
+              <Text style={styles.dashPercentText}>{Math.round(progress * 100)}%</Text>
+            </View>
+          ) : null}
+          <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+        </View>
 
-          {/* 第三行: 复习待办 + 开始背词 */}
-          <View style={styles.todayTaskBox}>
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                styles.reviewBtn,
-                (!notebookReviewTotal || loadingNotebookReview) && styles.actionBtnDisabled,
-              ]}
-              onPress={handleStartNotebookReview}
-              activeOpacity={0.8}
-              disabled={!notebookReviewTotal || loadingNotebookReview}
-            >
-              {loadingNotebookReview ? (
-                <ActivityIndicator size="small" color={Colors.primary} />
-              ) : (
-                <Ionicons name="repeat" size={18} color={Colors.primary} />
-              )}
-              <Text style={styles.reviewBtnText}>
-                复习待办{notebookReviewTotal ? ` ${notebookReviewTotal}` : ''}
-              </Text>
-            </TouchableOpacity>
+        {/* 今日目标进度: 已学习 / 学习目标 */}
+        <View style={styles.dashProgressTrack}>
+          <ProgressBar progress={progress} height={8} color={Colors.primary} />
+        </View>
+        <View style={styles.dashProgressMeta}>
+          <Text style={styles.dashProgressMetaText}>
+            今日已学 <Text style={styles.dashProgressStrong}>{learned}</Text>
+            {dayLimit ? ` / ${dayLimit}` : ''} 词
+          </Text>
+          <Text style={styles.dashProgressMetaText}>
+            未记住 <Text style={styles.dashProgressStrong}>{notebook?.notRemembered ?? 0}</Text> 词
+          </Text>
+        </View>
 
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                styles.primaryBtn,
-                startingNotebookStudy && styles.actionBtnDisabled,
-              ]}
-              onPress={handleStartNotebookStudy}
-              activeOpacity={0.8}
-              disabled={startingNotebookStudy}
-            >
-              {startingNotebookStudy ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="flash" size={18} color="#FFFFFF" />
-              )}
-              <Text style={styles.primaryBtnText}>开始学习</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
-    </View>
-  );
+        {/* 指标行: 学习目标 / 已学习 / 总数量 */}
+        <View style={styles.notebookMetrics}>
+          {renderNotebookMetric('学习目标', notebook?.dayLimit ?? '-', Colors.primary)}
+          <View style={styles.metricDivider} />
+          {renderNotebookMetric('已学习', notebook?.learnedToday ?? '-', Colors.success)}
+          <View style={styles.metricDivider} />
+          {renderNotebookMetric('总数量', notebook?.totalWords ?? '-', Colors.accent)}
+        </View>
+
+        {/* 底部入口 */}
+        <View style={styles.dashFooterRow}>
+          <Text style={styles.dashFooterHint}>进入生词本，开始今日学习</Text>
+          <Ionicons name="arrow-forward" size={13} color={Colors.primary} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   /**
    * 我的卡组卡片：全部顶层卡组的汇总统计（不再列子卡组、也不再有焦点卡组）。
@@ -983,14 +833,14 @@ const styles = StyleSheet.create({
   },
 
 
-  // 今日学习看板
+  // 生词本（与「我的卡组」卡片同一套卡片样式）
   dashboardCard: {
     backgroundColor: Colors.card,
     borderRadius: 18,
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 12,
-    padding: 20,
+    marginBottom: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: '#000',
@@ -1033,39 +883,35 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  // 第二行: 学习 / 已学习 / 总数量
-  notebookStatsRow: {
+  // 指标行: 学习目标 / 已学习 / 总数量（一行三列，竖线分隔）
+  notebookMetrics: {
     flexDirection: 'row',
-    marginTop: 16,
-    gap: 10,
-  },
-  notebookStatCell: {
-    flex: 1,
     alignItems: 'center',
+    marginTop: 14,
     paddingVertical: 12,
     borderRadius: 14,
     backgroundColor: Colors.backgroundAlt,
     borderWidth: 1,
     borderColor: Colors.divider,
   },
-  notebookStatIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  metricItem: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
   },
-  notebookStatValue: {
+  metricValue: {
     fontSize: 20,
     fontWeight: '800',
-    color: Colors.textPrimary,
     lineHeight: 24,
   },
-  notebookStatLabel: {
-    marginTop: 2,
+  metricLabel: {
+    marginTop: 3,
     fontSize: 12,
     color: Colors.textSecondary,
+  },
+  metricDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: Colors.border,
   },
   // 未登录标记
   unloginTag: {
@@ -1087,20 +933,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     paddingBottom: 2,
-  },
-  loginStateIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.divider,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  loginStateTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textPrimary,
   },
   loginStateDesc: {
     fontSize: 12,
@@ -1148,42 +980,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
-  // 今日任务（当前分类卡组）：只剩两个操作按钮
-  todayTaskBox: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
+  dashProgressStrong: {
+    fontWeight: '800',
+    color: Colors.textPrimary,
   },
-  actionBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
+  // 底部入口
+  dashFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
+    paddingTop: 12,
   },
-  primaryBtn: {
-    backgroundColor: Colors.primary,
-  },
-  primaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  reviewBtn: {
-    backgroundColor: Colors.primaryLight,
-  },
-  reviewBtnText: {
+  dashFooterHint: {
+    fontSize: 12,
     color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  actionBtnDisabled: {
-    opacity: 0.45,
+    fontWeight: '600',
   },
 
   todayActionRow: {
@@ -1650,12 +1462,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 21,
     color: Colors.textSecondary,
-  },
-  // 生词本卡片标题行左侧（可点击进入列表）
-  dashHeaderLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
   },
 });
