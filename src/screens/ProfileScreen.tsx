@@ -163,7 +163,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     try {
       const data = exportProgressData();
       await Share.share({
-        title: '糍粑英语学习备份',
+        title: '糍粑看美剧学英语学习备份',
         message: data,
       });
     } catch (err) {
@@ -442,7 +442,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         {/* 关于 */}
         <View style={styles.aboutFooter}>
-          <Text style={styles.aboutText}>糍粑英语 · CibaEnglish v1.0.0</Text>
+          <Text style={styles.aboutText}>糍粑看美剧学英语 · CibaEnglishEpisode v1.0.0</Text>
           <Text style={styles.aboutSub}> 纯粹的分类单词记忆工具</Text>
         </View>
       </ScrollView>

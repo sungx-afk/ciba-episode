@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert 糍粑英语_TOEFL词汇.xlsx -> words.json (app database).
+"""Convert 糍粑看美剧学英语_TOEFL词汇.xlsx -> words.json (app database).
 
 Output: { "words": [ {id, cat, sub, word, meaning, note} ... ] }
 Sub category "" means the word belongs directly to the top category.
@@ -10,7 +10,7 @@ import sys
 import zipfile
 import xml.etree.ElementTree as ET
 
-SRC = "/Users/gpro/Documents/english-learn/deepseek/糍粑英语_TOEFL词汇.xlsx"
+SRC = "/Users/gpro/Documents/english-learn/deepseek/糍粑看美剧学英语_TOEFL词汇.xlsx"
 OUT = "/Users/gpro/Documents/english-learn/deepseek/CibaEnglish/CibaEnglish/Data/words.json"
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 T = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"

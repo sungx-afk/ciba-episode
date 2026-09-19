@@ -1,5 +1,5 @@
 /**
- * 糍粑英语 App Store 截图配置。
+ * 糍粑看美剧学英语 App Store 截图配置。
  *
  * 出图（先确保 Web 服务已启动，见下方 startCommand）：
  *   npm run shots

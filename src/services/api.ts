@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
- * 糍粑英语后端 API 客户端
+ * 糍粑看美剧学英语后端 API 客户端
  *
  * 后端响应统一规范:
  *  - result === 0       成功 (标准响应)

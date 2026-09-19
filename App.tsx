@@ -93,7 +93,7 @@ class RootErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
     const logs = getBootLogs()
       .map((l) => `[${l.time}][${l.tag}][${l.level.toUpperCase()}] ${l.message}`)
       .join('\n');
-    return `=== 糍粑英语异常诊断报告 ===\n时间: ${new Date().toLocaleString()}\n平台: ${Platform.OS}\n\n【错误信息】\n${errorMsg}\n\n【错误调用堆栈】\n${stack}\n\n【故障组件位置】\n${compStack}\n\n【启动日志流】\n${logs}`;
+    return `=== 糍粑看美剧学英语异常诊断报告 ===\n时间: ${new Date().toLocaleString()}\n平台: ${Platform.OS}\n\n【错误信息】\n${errorMsg}\n\n【错误调用堆栈】\n${stack}\n\n【故障组件位置】\n${compStack}\n\n【启动日志流】\n${logs}`;
   };
 
   handleCopyReport = async () => {
@@ -110,7 +110,7 @@ class RootErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState
     try {
       const text = this.generateReportText();
       await Share.share({
-        title: '糍粑英语启动异常诊断报告',
+        title: '糍粑看美剧学英语启动异常诊断报告',
         message: text,
       });
     } catch (_) {}

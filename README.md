@@ -1,4 +1,4 @@
-# 糍粑英语 · CibaEnglish
+# 糍粑看美剧学英语 · CibaEnglishEpisode
 
 按意群分类记忆 TOEFL 词汇的跨平台移动端应用。基于 **React Native + Expo + EAS** 构建。
 

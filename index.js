@@ -78,7 +78,7 @@ class SafeAppLauncher extends Component {
 
   handleCopyReport = async () => {
     try {
-      const text = `=== 糍粑英语致命异常诊断报告 ===\n时间: ${new Date().toLocaleString()}\n错误信息:\n${this.state.errorMessage}\n\n错误堆栈:\n${this.state.errorStack}`;
+      const text = `=== 糍粑看美剧学英语致命异常诊断报告 ===\n时间: ${new Date().toLocaleString()}\n错误信息:\n${this.state.errorMessage}\n\n错误堆栈:\n${this.state.errorStack}`;
       await Clipboard.setStringAsync(text);
       Alert.alert('已复制', '异常诊断报告已复制到剪贴板，可直接粘贴！');
     } catch (_) {
@@ -88,8 +88,8 @@ class SafeAppLauncher extends Component {
 
   handleShareReport = async () => {
     try {
-      const text = `=== 糍粑英语致命异常诊断报告 ===\n时间: ${new Date().toLocaleString()}\n错误信息:\n${this.state.errorMessage}\n\n错误堆栈:\n${this.state.errorStack}`;
-      await Share.share({ title: '糍粑英语启动异常', message: text });
+      const text = `=== 糍粑看美剧学英语致命异常诊断报告 ===\n时间: ${new Date().toLocaleString()}\n错误信息:\n${this.state.errorMessage}\n\n错误堆栈:\n${this.state.errorStack}`;
+      await Share.share({ title: '糍粑看美剧学英语启动异常', message: text });
     } catch (_) {}
   };
 
