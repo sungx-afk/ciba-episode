@@ -11,6 +11,8 @@ import { FlashcardScreen } from '../screens/FlashcardScreen';
 import { BookmarkStudyScreen } from '../screens/BookmarkStudyScreen';
 import { BookSelectScreen } from '../screens/BookSelectScreen';
 import { MarketScreen } from '../screens/MarketScreen';
+import { MyPacksScreen } from '../screens/MyPacksScreen';
+import { SubPacksScreen } from '../screens/SubPacksScreen';
 import { PurchaseScreen } from '../screens/PurchaseScreen';
 import { WebPageScreen } from '../screens/WebPageScreen';
 
@@ -59,6 +61,9 @@ export function RootNavigator() {
         {/* 词库 / 卡组 / 会员 */}
         <Stack.Screen name="BookSelect" component={BookSelectScreen} />
         <Stack.Screen name="Market" component={MarketScreen} />
+        {/* 我的卡组列表 → 某个卡组的分类卡组列表（学习入口） */}
+        <Stack.Screen name="MyPacks" component={MyPacksScreen} />
+        <Stack.Screen name="SubPacks" component={SubPacksScreen} />
         <Stack.Screen
           name="Purchase"
           component={PurchaseScreen}
