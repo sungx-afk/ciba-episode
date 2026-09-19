@@ -435,37 +435,50 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     navigation.navigate('MyPacks');
   };
 
-  /** 固定顶部标题栏：不随列表滚动 */
-  const renderTopBar = () => (
-    <View style={styles.header}>
-      <View style={styles.brandBlock}>
-        <View style={styles.logoCircle}>
-          <Image
-            source={require('../assets/pinwheel.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+  /**
+   * 顶部区（不随列表滚动）：品牌栏与用户信息合并成一块主色头图。
+   * 第一行是品牌名 + 连续天数 + 去卡组市场，第二行是用户信息卡，
+   * 一屏之内就能看到「我是谁、学了多少天、去哪加卡组」。
+   */
+  const renderHeader = () => (
+    <View style={styles.headerWrap}>
+      {/* 第一行：品牌 + 连续学习天数 + 添加卡组 */}
+      <View style={styles.headerTopRow}>
+        <View style={styles.brandBlock}>
+          <View style={styles.logoCircle}>
+            <Image
+              source={require('../assets/pinwheel.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={styles.brandTextWrap}>
+            <Text style={styles.brandTitle} numberOfLines={1}>
+              糍粑看美剧学英语
+            </Text>
+            <Text style={styles.brandSlogan} numberOfLines={1}>
+              看美剧，记单词
+            </Text>
+          </View>
         </View>
-        <View style={styles.brandTextWrap}>
-          <Text style={styles.brandTitle} numberOfLines={1}>
-            糍粑看美剧学英语
-          </Text>
+
+        <View style={styles.headerActions}>
+          <View style={styles.streakBadge}>
+            <Ionicons name="flame" size={15} color="#FFFFFF" />
+            <Text style={styles.streakText}>{stats.streakDays} 天</Text>
+          </View>
+          <TouchableOpacity style={styles.addButton} onPress={handleOpenMarket} activeOpacity={0.8}>
+            <Ionicons name="add" size={20} color={Colors.primary} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.headerActions}>
-        <View style={styles.streakBadge}>
-          <Ionicons name="flame" size={15} color={Colors.pinwheelRed} />
-          <Text style={styles.streakText}>{stats.streakDays} 天</Text>
-        </View>
-        <TouchableOpacity style={styles.addButton} onPress={handleOpenMarket} activeOpacity={0.8}>
-          <Ionicons name="add" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      {/* 第二行：用户信息卡（头像 / 昵称 / 会员 / 登录入口） */}
+      {renderUserCard()}
     </View>
   );
 
-  /** 用户信息卡：头像 + 昵称 + 会员/登录入口，点击进入「我的」 */
+  /** 用户信息卡（顶部区第二行）：头像 + 昵称 + 会员/登录入口，点击进入「我的」 */
   const renderUserCard = () => (
     <View style={styles.userCard}>
       {authLoading ? (
@@ -817,30 +830,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
-      {/* 固定顶部标题栏 */}
-      {renderTopBar()}
+      {/* 顶部区：品牌栏 + 用户信息（不随列表滚动） */}
+      {renderHeader()}
 
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={loadingPacks} onRefresh={reloadAll} colors={[Colors.primary]} />
-        }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ① 用户信息：头像 / 昵称 / 会员状态 / 登录入口 */}
-        {renderUserCard()}
+      <View style={styles.pageBody}>
+        <ScrollView
+          refreshControl={
+            <RefreshControl
+              refreshing={loadingPacks}
+              onRefresh={reloadAll}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ① 生词本：今日目标与学习统计 */}
+          {renderDashboardCard()}
 
-        {/* ② 生词本：今日目标与学习统计 */}
-        {renderDashboardCard()}
+          {/* ② 我的卡组：全部卡组总览，点进去挑卡组学习 */}
+          {renderPacksCard()}
 
-        {/* ③ 我的卡组：分类卡组进度与列表（标题 + 整体进度 + tab + 列表） */}
-        {renderPacksCard()}
-
-        {/* ④ 电脑端插件说明 */}
-        {renderTipCard()}
-      </ScrollView>
+          {/* ③ 电脑端插件说明 */}
+          {renderTipCard()}
+        </ScrollView>
+      </View>
 
       <ConfirmDialog
         visible={dialog !== null}
@@ -860,22 +877,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    // 顶部主色区一直铺到状态栏，状态栏文字用白色
+    backgroundColor: Colors.primary,
+  },
+  // 顶部区之下的内容区：浅色底，与顶部主色区分层
+  pageBody: {
+    flex: 1,
     backgroundColor: Colors.background,
   },
   listContent: {
     paddingBottom: 40,
   },
-  // 顶部标题栏：主色浅底 + 底部圆角，与下方看板形成层次
-  header: {
+  // 顶部区：主色实底 + 底部大圆角，品牌栏与用户信息卡都放在里面
+  headerWrap: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 18,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 14,
-    backgroundColor: Colors.primaryLight,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
   },
   brandBlock: {
     flex: 1,
@@ -906,8 +931,15 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: Colors.textPrimary,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  brandSlogan: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    opacity: 0.75,
   },
   brandPackName: {
     marginTop: 2,
@@ -926,27 +958,27 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: 'rgba(255,255,255,0.20)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   streakText: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.pinwheelRed,
+    color: '#FFFFFF',
     marginLeft: 4,
   },
 
@@ -1464,14 +1496,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ── 顶部用户信息卡 ──
+  // ── 顶部用户信息卡（浮在主色顶部区内） ──
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.card,
     borderRadius: 18,
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 14,
     padding: 14,
     borderWidth: 1,
     borderColor: Colors.border,
