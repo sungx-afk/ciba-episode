@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "CibaEnglish-episode",
+    "slug": "ciba-english",
+    "version": "1.1.1",
+    "scheme": "cibaenglish",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./src/assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8FBFC"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yugusoft.CibaEnglish.episode",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "weixin",
+            "CFBundleURLSchemes": [
+              "wx97f824fd700ab212",
+              "cibaenglish"
+            ]
+          }
+        ],
+        "LSApplicationQueriesSchemes": [
+          "weixin",
+          "weixinULAPI"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.yugusoft.CibaEnglish.episode",
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#F8FBFC"
+      }
+    },
+    "web": {
+      "favicon": "./src/assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-apple-authentication",
+      "react-native-iap"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "15b9b0bb-0721-4c3d-9b3c-9e482b9d33de"
+      }
+    },
+    "owner": "liushuang2s-team"
+  }
+}

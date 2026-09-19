@@ -1,0 +1,113 @@
+name: Build & Release iOS App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build iOS App (Cloud Xcode)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode_15.3.app || sudo xcode-select -s /Applications/Xcode.app || true
+          xcodebuild -version
+
+      - name: Install Project Dependencies
+        run: npm ci || npm install
+
+      - name: Prebuild iOS Project with Expo
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods Dependencies
+        run: |
+          set -o pipefail
+          mkdir -p build
+          cd ios
+          pod install --repo-update 2>&1 | tee ../build/pod-install.log
+
+      - name: Build & Archive iOS App
+        run: |
+          set -o pipefail
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | node -p "JSON.parse(require('fs').readFileSync(0)).workspace.schemes[0]" || echo "app")
+          echo "Building Workspace: $WORKSPACE, Scheme: $SCHEME"
+          mkdir -p build
+          xcodebuild -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/App.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean archive 2>&1 | tee build/xcodebuild.log
+
+      # 把真正的编译错误提到 Annotations，失败时不用翻整份日志
+      - name: Surface Build Errors
+        if: failure()
+        run: |
+          echo "::error title=toolchain::Xcode $(xcode-select -p) | $(xcodebuild -version | tr '\n' ' ')"
+          if [ -d ios ]; then
+            echo "::error title=ios-dir::ios 目录内容: $(ls ios 2>/dev/null | head -15 | tr '\n' ' ')"
+          else
+            echo "::error title=ios-dir::ios 目录不存在（prebuild 未生成）"
+          fi
+          node tools/surface-xcode-errors.js build/pod-install.log pod-install
+          node tools/surface-xcode-errors.js build/xcodebuild.log xcodebuild
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/App.xcarchive/Products/Applications/*.app Payload/
+          zip -qr CibaEnglish-iOS.ipa Payload
+          mkdir -p build-output
+          cp CibaEnglish-iOS.ipa build-output/CibaEnglish-iOS-latest.ipa
+
+          VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "1.0.0")
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_VER="${{ github.ref_name }}"
+            VERSION="${TAG_VER#v}"
+          fi
+          cp CibaEnglish-iOS.ipa "build-output/CibaEnglish-iOS-v${VERSION}.ipa"
+          echo "PACKAGE_VERSION=v${VERSION}" >> $GITHUB_ENV
+          echo "IOS_READY=true" >> $GITHUB_ENV
+
+      - name: Upload IPA to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CibaEnglish-iOS-IPA
+          path: build-output/*.ipa
+          retention-days: 30
+
+      - name: Create or Update GitHub Release
+        if: env.IOS_READY == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.PACKAGE_VERSION || github.ref_name }}
+          name: 糍粑英语 ${{ env.PACKAGE_VERSION || github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: build-output/*.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

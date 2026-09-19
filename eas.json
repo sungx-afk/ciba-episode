@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview-device": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false,
+        "image": "macos-sequoia-15.6-xcode-26.0"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.0"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "groups": ["CI 自动分发"]
+      }
+    }
+  }
+}

@@ -1,0 +1,151 @@
+name: EAS Build & Submit iOS
+
+# 云端编译 + 签名 + 上传 TestFlight，全程不需要本机 Xcode
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: '构建 Profile'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - preview-device
+      submit:
+        description: '构建后上传到 TestFlight'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: eas-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: EAS Build iOS (Cloud)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Project Dependencies
+        run: npm ci || npm install
+
+      - name: Install EAS CLI
+        run: |
+          npm install -g eas-cli
+          eas --version
+
+      # 把 EAS 项目 ID 与 Apple 凭据从 Secrets 注入配置，避免把账号信息提交进仓库
+      - name: Configure EAS Project & Apple Credentials
+        env:
+          EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          TESTFLIGHT_GROUPS: ${{ secrets.TESTFLIGHT_GROUPS }}
+        run: |
+          node -e '
+          const fs = require("fs");
+          const read = p => JSON.parse(fs.readFileSync(p, "utf8"));
+          const write = (p, o) => fs.writeFileSync(p, JSON.stringify(o, null, 2) + "\n");
+
+          const projectId = process.env.EXPO_PROJECT_ID;
+          if (!projectId) {
+            console.log("::error title=missing-secret::缺少 GitHub Secret: EXPO_PROJECT_ID");
+            process.exit(1);
+          }
+
+          const app = read("app.json");
+          app.expo = app.expo || {};
+          app.expo.extra = { ...(app.expo.extra || {}), eas: { ...(app.expo.extra?.eas || {}), projectId } };
+          write("app.json", app);
+
+          const eas = read("eas.json");
+          // 保留仓库里已声明的 submit.production.ios（如 groups），再让 Secrets 覆盖
+          const ios = { ...(eas.submit?.production?.ios || {}) };
+          if (process.env.APPLE_TEAM_ID) ios.appleTeamId = process.env.APPLE_TEAM_ID;
+          if (process.env.ASC_APP_ID) ios.ascAppId = process.env.ASC_APP_ID;
+          if (process.env.ASC_API_KEY_P8) {
+            const raw = process.env.ASC_API_KEY_P8.trim();
+            // 直接粘贴原文（含 BEGIN/END 标记）时按文本写入，否则按 base64 解码
+            const content = raw.includes("BEGIN PRIVATE KEY")
+              ? raw.replace(/\\n/g, "\n")
+              : Buffer.from(raw, "base64").toString("utf8");
+            if (!content.includes("BEGIN PRIVATE KEY")) {
+              console.log("::error title=bad-secret::ASC_API_KEY_P8 内容不是合法的 .p8");
+              process.exit(1);
+            }
+            const keyPath = process.env.RUNNER_TEMP + "/asc-key.p8";
+            fs.writeFileSync(keyPath, content);
+            ios.ascApiKeyPath = keyPath;
+            ios.ascApiKeyId = process.env.ASC_API_KEY_ID;
+            ios.ascApiKeyIssuerId = process.env.ASC_API_KEY_ISSUER_ID;
+          }
+          // 逗号分隔的 TestFlight 内部测试组名，留空则用 eas.json 里已配的 groups
+          const groups = (process.env.TESTFLIGHT_GROUPS || "")
+            .split(",")
+            .map((g) => g.trim())
+            .filter(Boolean);
+          if (groups.length) ios.groups = groups;
+
+          eas.submit = eas.submit || {};
+          eas.submit.production = { ...(eas.submit.production || {}), ios };
+          write("eas.json", eas);
+          console.log("EAS 配置已注入");
+          '
+
+      - name: Build with EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          PROFILE="${{ inputs.profile || 'production' }}"
+          echo "profile=$PROFILE"
+          eas build --platform ios --profile "$PROFILE" --non-interactive
+
+      # 上传与构建分开：fastlane 偶发在上传成功后的收尾阶段返回非零，
+      # 不能让「包已经好了」被误判成整条流水线失败
+      - name: Submit to TestFlight
+        id: submit
+        # 判定放在 shell 里做：tag 触发时 inputs.* 为空，
+        # 表达式 inputs.submit != false 会因类型转换（null -> 0）被判为 false 而误跳过
+        continue-on-error: true
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          PROFILE="${{ inputs.profile || 'production' }}"
+          SUBMIT="${{ inputs.submit }}"
+          # 只有 production（store 分发）才上传 TestFlight；空值按 true 处理
+          if [ "$PROFILE" = "production" ] && [ "$SUBMIT" != "false" ]; then
+            eas submit --platform ios --latest --non-interactive
+          else
+            echo "跳过上传: profile=$PROFILE submit=$SUBMIT"
+          fi
+
+      - name: Submission Warning
+        if: ${{ steps.submit.outcome == 'failure' }}
+        run: |
+          echo "::warning title=eas::TestFlight 上传未成功（构建本身已成功）"
+          echo "::warning title=eas::IPA 已生成，可本地执行 eas submit --platform ios --latest 重试"
+
+      - name: Failure Hints
+        if: failure()
+        run: |
+          echo "::error title=eas::EAS 构建失败，常见原因："
+          echo "::error title=eas::1) EXPO_TOKEN 失效 —— 到 expo.dev/settings/access-tokens 重新生成"
+          echo "::error title=eas::2) 首次构建需要 Apple 授权 —— 本地先跑一次 eas credentials --platform ios 完成证书初始化"
+          echo "::error title=eas::3) buildNumber 冲突 —— 确认 eas.json 里 cli.appVersionSource 为 remote"
