@@ -372,9 +372,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <Ionicons name="flame" size={15} color="#FFFFFF" />
             <Text style={styles.streakText}>{stats.streakDays} 天</Text>
           </View>
-          <TouchableOpacity style={styles.addButton} onPress={handleOpenMarket} activeOpacity={0.8}>
-            <Ionicons name="add" size={20} color={Colors.primary} />
-          </TouchableOpacity>
+          {/* 未登录时不再暴露「去卡组市场」入口，登录入口统一放用户信息卡 */}
+          {isLoggedIn ? (
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleOpenMarket}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={20} color={Colors.primary} />
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 
@@ -513,7 +520,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
 
     if (!isLoggedIn) {
-      /* 未登录状态：一行说明 + 登录入口，账号信息统一由顶部用户卡承载 */
+      /* 未登录状态：只给文字提示，登录按钮统一由顶部用户信息卡承载 */
       return (
         <View style={styles.dashboardCard}>
           <View style={styles.dashHeader}>
@@ -530,14 +537,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.loginMainBtn}
-            onPress={() => navigation.navigate('Login')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="log-in-outline" size={17} color="#FFFFFF" />
-            <Text style={styles.loginMainBtnText}>立即登录，开始背词</Text>
-          </TouchableOpacity>
+          <View style={styles.unloginHintRow}>
+            <Ionicons name="lock-closed-outline" size={13} color={Colors.textMuted} />
+            <Text style={styles.unloginHintText}>登录后查看今日目标与生词本进度</Text>
+          </View>
         </View>
       );
     }
@@ -609,7 +612,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
    * 卡片整体可点，进「我的卡组」列表页 → 挑卡组 → 分类卡组 → 学习。
    */
   const renderPacksCard = () => (
-    <TouchableOpacity style={styles.packsCard} onPress={handleOpenMyPacks} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={styles.packsCard}
+      onPress={isLoggedIn ? handleOpenMyPacks : undefined}
+      activeOpacity={isLoggedIn ? 0.85 : 1}
+    >
       {/* 第一行: 标题 + 全部卡组的完成度 */}
       <View style={styles.packsHeader}>
         <View style={styles.packsTitleIcon}>
@@ -620,7 +627,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             我的卡组
           </Text>
           <Text style={styles.packsSubtitle} numberOfLines={1}>
-            {allPacksStats.packCount > 0
+            {!isLoggedIn
+              ? '登录后查看我的卡组'
+              : allPacksStats.packCount > 0
               ? `共 ${allPacksStats.packCount} 个卡组 · 已记住 ${allPacksStats.remembered}/${allPacksStats.totalWords} 词`
               : '还没有卡组'}
           </Text>
@@ -628,7 +637,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <View style={styles.packsPercentBadge}>
           <Text style={styles.packsPercentText}>{Math.round(allPacksStats.progress * 100)}%</Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+        {isLoggedIn ? (
+          <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+        ) : null}
       </View>
 
       {/* 全部卡组的已记住 / 未记住 单词数 */}
@@ -656,6 +667,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <TouchableOpacity style={styles.retryBtn} onPress={reloadAll} activeOpacity={0.8}>
             <Text style={styles.retryText}>重试</Text>
           </TouchableOpacity>
+        </View>
+      ) : !isLoggedIn ? (
+        <View style={styles.unloginHintRow}>
+          <Ionicons name="lock-closed-outline" size={13} color={Colors.textMuted} />
+          <Text style={styles.unloginHintText}>登录后去卡组市场添加分类背单词卡组</Text>
         </View>
       ) : topPacks.length === 0 ? (
         <View style={styles.packsEmptyWrap}>
@@ -928,6 +944,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.textMuted,
   },
+  // 未登录提示：纯文字，登录按钮统一放顶部用户信息卡
+  unloginHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.backgroundAlt,
+    gap: 6,
+  },
+  unloginHintText: {
+    flexShrink: 1,
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
   // 未登录引导区
   loginStateWrap: {
     alignItems: 'center',
@@ -940,27 +973,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     marginTop: 6,
-  },
-  loginMainBtn: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 18,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  loginMainBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
   },
   dashPercentText: {
     fontSize: 13,
@@ -1228,28 +1240,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  // 未登录时的分类卡组占位（无按钮，避免与上方登录入口重复）
-  lockedBox: {
-    marginTop: 12,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    alignItems: 'center',
-    gap: 8,
-  },
-  lockedTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  lockedDesc: {
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
+
 
   // 空态 / 加载
   centerPadding: {
