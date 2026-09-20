@@ -13,6 +13,8 @@ export const Colors = {
   background: '#F5F4EF', // 页面底（暖石白）
   backgroundAlt: '#EDEBE3', // 区块交替底
   card: '#FFFFFF', // 卡片
+  surfaceSoft: '#F4F3ED', // 卡片内的浅米子区块（指标区 / 次级按钮）
+  paper: '#FCF6E8', // 浅米黄宣纸底（提示卡）
   dark: '#10281F', // 深色（深色卡/深色底）
 
   textPrimary: '#17231E', // 标题
