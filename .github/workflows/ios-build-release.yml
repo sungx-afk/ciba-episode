@@ -37,6 +37,15 @@ jobs:
       - name: Prebuild iOS Project with Expo
         run: npx expo prebuild --platform ios --clean
 
+      # 兜底：Expo 有时会用工程名覆盖 CFBundleDisplayName，这里强制写回中文主屏名
+      - name: Set iOS Display Name
+        run: |
+          PLIST=$(find ios -name "Info.plist" -not -path "*/Pods/*" -not -path "*Supporting Files*" | head -n 1)
+          echo "Info.plist: $PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 糍粑看美剧学英语" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 糍粑看美剧学英语" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$PLIST"
+
       - name: Install CocoaPods Dependencies
         run: |
           set -o pipefail

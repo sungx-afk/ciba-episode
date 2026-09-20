@@ -2,7 +2,7 @@
   "expo": {
     "name": "CibaEnglish-episode",
     "slug": "ciba-english",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "scheme": "cibaenglish",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
@@ -17,6 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.yugusoft.CibaEnglish.episode",
       "infoPlist": {
+        "CFBundleDisplayName": "糍粑看美剧学英语",
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
           {
