@@ -908,16 +908,19 @@ const styles = StyleSheet.create({
   backActionText: {
     color: Colors.textSecondary,
   },
+  // 「还没掌握，明天再来」= 待办提醒，用鎏金（与 Profile「待复习」同语义色），
+  // 与右侧苍绿的「已记住」形成色相 + 明度双重差异
   tomorrowAction: {
     flex: 1.5,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.warningDeep,
   },
   tomorrowActionText: {
     color: '#FFFFFF',
   },
+  // 主推动作：全页唯一的实心深绿，视觉最重
   rememberAction: {
     flex: 1.5,
-    backgroundColor: Colors.success,
+    backgroundColor: Colors.primary,
   },
   rememberActionText: {
     color: '#FFFFFF',

@@ -364,7 +364,7 @@ export const LoginScreen: React.FC = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="close" size={20} color="#3C4A43" />
+                <Ionicons name="close" size={20} color="#46534C" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -546,7 +546,7 @@ export const LoginScreen: React.FC = () => {
                   <Ionicons
                     name={agreeTerms ? 'checkmark-circle' : 'ellipse-outline'}
                     size={16}
-                    color={agreeTerms ? Colors.primary : '#93A199'}
+                    color={agreeTerms ? Colors.primary : '#9AA79F'}
                   />
                   <Text style={[styles.termsText, styles.termsPrefix]}>
                     登录即代表您已阅读并同意
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#EDEBE3',
+    backgroundColor: '#ECEEE7',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -667,14 +667,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 7,
     borderRadius: 18,
-    backgroundColor: '#E9EFEA',
+    backgroundColor: '#EAF1EC',
     borderWidth: 1,
-    borderColor: '#C8C5B7',
+    borderColor: '#C3CABC',
   },
   registerBadgeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1B4B3F',
+    color: '#3B6848',
   },
   heroSection: {
     flexDirection: 'row',
@@ -690,18 +690,18 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 34,
     fontWeight: '800',
-    color: '#17231E',
+    color: '#1F2B24',
     letterSpacing: -0.6,
   },
   heroSubtitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3C4A43',
+    color: '#46534C',
     marginTop: 6,
   },
   heroTagline: {
     fontSize: 12,
-    color: '#63736B',
+    color: '#6B7A73',
     marginTop: 5,
     lineHeight: 17,
   },
@@ -710,10 +710,10 @@ const styles = StyleSheet.create({
     height: 112,
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#E9EFEA',
+    backgroundColor: '#EAF1EC',
     ...Platform.select({
       ios: {
-        shadowColor: '#1B4B3F',
+        shadowColor: '#3B6848',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.16,
         shadowRadius: 10,
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     ...Platform.select({
       ios: {
-        shadowColor: '#1B4B3F',
+        shadowColor: '#3B6848',
         shadowOffset: { width: 0, height: 12 },
         shadowOpacity: 0.09,
         shadowRadius: 22,
@@ -760,12 +760,12 @@ const styles = StyleSheet.create({
   cardTabText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#93A199',
+    color: '#9AA79F',
   },
   cardTabTextActive: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#17231E',
+    color: '#1F2B24',
   },
   cardTabIndicator: {
     position: 'absolute',
@@ -788,7 +788,7 @@ const styles = StyleSheet.create({
   },
   subActionText: {
     fontSize: 13,
-    color: '#63736B',
+    color: '#6B7A73',
     fontWeight: '500',
   },
   subActionHighlight: {
@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
   },
   firstLoginTip: {
     fontSize: 11,
-    color: '#93A199',
+    color: '#9AA79F',
   },
   heroButton: {
     backgroundColor: Colors.primary,
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 12,
-    color: '#63736B',
+    color: '#6B7A73',
     lineHeight: 18,
   },
   termsPrefix: {
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   termsLink: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#3C4A43',
+    color: '#46534C',
     fontWeight: '600',
   },
   bottomGroup: {
@@ -867,12 +867,12 @@ const styles = StyleSheet.create({
   socialLine: {
     flex: 1,
     height: 0.8,
-    backgroundColor: '#EAE8DF',
+    backgroundColor: '#E8EDE7',
   },
   socialDividerText: {
     paddingHorizontal: 14,
     fontSize: 12,
-    color: '#93A199',
+    color: '#9AA79F',
   },
   socialBtnGroup: {
     flexDirection: 'row',
@@ -906,10 +906,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   emailBg: {
-    backgroundColor: '#1B4B3F',
+    backgroundColor: '#3B6848',
   },
   bottomSecurityText: {
     fontSize: 11,
-    color: '#93A199',
+    color: '#9AA79F',
   },
 });

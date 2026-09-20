@@ -16,7 +16,9 @@ import { packLibrary, RemotePack } from '../services/packLibrary';
 import { Colors, getCategoryColor } from '../theme/colors';
 import { ProgressBar } from '../components/ProgressBar';
 import { Header } from '../components/Header';
+import { showToast } from '../utils/toast';
 import { ConfirmDialog, DialogPayload } from '../components/ConfirmDialog';
+import { ActionSheet } from '../components/ActionSheet';
 
 interface MyPacksScreenProps {
   navigation: any;
@@ -28,14 +30,18 @@ interface MyPacksScreenProps {
  * 点某个卡组进入它的分类卡组列表（SubPacks）开始学习。
  */
 export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
-  const { isLoggedIn, setCurrentTopPack } = useProgress();
+  const { isLoggedIn, setCurrentTopPack, currentTopPack, resetCurrentTopPack } = useProgress();
 
   const [packs, setPacks] = useState<RemotePack[]>([]);
+  /** 正在删除的卡组 id：按钮上转圈并禁用其它删除，避免连点 */
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   /** 统一弹窗状态：确认/提示一律走 ConfirmDialog */
   const [dialog, setDialog] = useState<DialogPayload | null>(null);
+  /** 卡片右上角「更多」菜单指向的卡组 */
+  const [menuPack, setMenuPack] = useState<RemotePack | null>(null);
   /** 首次聚焦由首次加载负责，避免重复请求 */
   const focusedOnceRef = useRef(false);
 
@@ -107,43 +113,126 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
     navigation.navigate('Market');
   };
 
+  /** 删除卡组：与「切换词库」里同一个接口，删完顺手把首页焦点让出来 */
+  const confirmDelete = async (pack: RemotePack) => {
+    setDeletingId(pack.id);
+    try {
+      await packLibrary.deletePack(pack.id);
+      const rest = packs.filter((p) => Number(p.id) !== Number(pack.id));
+      setPacks(rest);
+      // 删掉的正好是首页在用的卡组：清空焦点，避免首页继续拿已删 id 请求
+      if (Number(currentTopPack?.id) === Number(pack.id)) {
+        resetCurrentTopPack();
+      }
+      showToast('已删除卡组');
+      if (!rest.length) {
+        setDialog({
+          title: '卡组已清空',
+          message: '当前没有卡组了，去卡组市场添加新的分类背单词卡组吧',
+          confirmText: '去卡组市场',
+          cancelText: '稍后再说',
+          onConfirm: () => {
+            setDialog(null);
+            navigation.navigate('Market');
+          },
+        });
+      }
+    } catch (e: any) {
+      setDialog({
+        title: '删除失败',
+        message: e?.message || '请稍后重试',
+        showCancel: false,
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  /** 删除前二次确认：走页面统一的 ConfirmDialog */
+  const handleDeletePack = (pack: RemotePack) => {
+    if (!isLoggedIn) {
+      setDialog({
+        title: '需要登录',
+        message: '请先登录后再管理我的卡组',
+        confirmText: '去登录',
+        onConfirm: () => {
+          setDialog(null);
+          navigation.navigate('Login');
+        },
+      });
+      return;
+    }
+    setDialog({
+      title: '删除卡组',
+      message: `确定删除「${pack.name}」吗？该卡组及其下分类卡组、学习记录会一并删除，且不可恢复。`,
+      confirmText: '删除',
+      cancelText: '取消',
+      onConfirm: () => {
+        setDialog(null);
+        confirmDelete(pack);
+      },
+    });
+  };
+
   const renderItem = ({ item }: { item: RemotePack }) => {
     const total = Number(item.card_count) || 0;
     const remembered = Math.max(0, Math.min(total, Number(item.remembered_card_count) || 0));
     const progress = total > 0 ? Math.min(1, remembered / total) : 0;
     const color = getCategoryColor(item.name);
+    const isDeleting = deletingId === item.id;
 
     return (
-      <TouchableOpacity
-        style={styles.packCard}
-        onPress={() => handleOpenPack(item)}
-        activeOpacity={0.8}
-      >
-        <View style={[styles.packIcon, { backgroundColor: `${color}1A` }]}>
-          <Ionicons name="albums-outline" size={20} color={color} />
-        </View>
-
-        <View style={styles.packBody}>
-          <Text style={styles.packName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {item.summary ? (
-            <Text style={styles.packSummary} numberOfLines={2}>
-              {item.summary}
-            </Text>
-          ) : null}
-          <View style={styles.progressRow}>
-            <View style={styles.progressTrack}>
-              <ProgressBar progress={progress} height={4} color={color} />
-            </View>
-            <Text style={styles.progressText}>
-              已记住 {remembered}/{total} 词
-            </Text>
+      <View style={styles.packCard}>
+        <TouchableOpacity
+          style={styles.packMain}
+          onPress={() => handleOpenPack(item)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.packIcon, { backgroundColor: `${color}1A` }]}>
+            <Ionicons name="albums-outline" size={20} color={color} />
           </View>
-        </View>
 
-        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-      </TouchableOpacity>
+          <View style={styles.packBody}>
+            <Text style={styles.packName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {item.summary ? (
+              <Text style={styles.packSummary} numberOfLines={2}>
+                {item.summary}
+              </Text>
+            ) : null}
+            <View style={styles.progressRow}>
+              <View style={styles.progressTrack}>
+                <ProgressBar progress={progress} height={4} color={color} />
+              </View>
+              <Text style={styles.progressText}>
+                已记住 {remembered}/{total} 词
+              </Text>
+            </View>
+          </View>
+
+          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+        </TouchableOpacity>
+
+        {/*
+          右上角的「更多」：独立浮在卡片上（不是主体的子节点），
+          所以它只会打开菜单，不会把点击继续传给主体的「查看分类卡组」。
+          命中区放大到 44x44，但图标本身贴在右上角，视觉上不压住中间的小箭头。
+        */}
+        <TouchableOpacity
+          style={styles.moreBtn}
+          onPress={() => setMenuPack(item)}
+          disabled={deletingId !== null}
+          activeOpacity={0.7}
+          accessibilityLabel="更多操作"
+        >
+          {isDeleting ? (
+            <ActivityIndicator size="small" color={Colors.textTertiary} />
+          ) : (
+            <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
+          )}
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -179,7 +268,7 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
       <Header
         title="我的卡组"
         onBack={() => navigation.goBack()}
-        rightAction={{ icon: 'add', onPress: handleOpenMarket }}
+        rightAction={{ icon: 'add', onPress: handleOpenMarket, filled: true, label: '添加' }}
       />
 
       {loading && packs.length === 0 ? (
@@ -203,24 +292,6 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
               }}
               colors={[Colors.primary]}
             />
-          }
-          ListFooterComponent={
-            packs.length > 0 ? (
-              <TouchableOpacity
-                style={styles.addMoreBtn}
-                onPress={handleOpenMarket}
-                activeOpacity={0.7}
-              >
-                <View style={styles.addMoreIconWrap}>
-                  <Ionicons name="add" size={20} color={Colors.primary} />
-                </View>
-                <View style={styles.addMoreTextWrap}>
-                  <Text style={styles.addMoreTitle}>去卡组市场添加更多卡组</Text>
-                  <Text style={styles.addMoreHint}>市场里有分类单词组块，可继续扩充我的卡组</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
-              </TouchableOpacity>
-            ) : null
           }
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
@@ -267,6 +338,18 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
         onConfirm={dialog?.onConfirm}
         onCancel={dialog?.onCancel}
         onClose={() => setDialog(null)}
+      />
+
+      {/* 卡片「更多」菜单：删除这种不可逆操作，先出菜单再二次确认 */}
+      <ActionSheet
+        visible={menuPack !== null}
+        items={[{ key: 'delete', name: '删除卡组', danger: true }]}
+        onSelect={(key) => {
+          const target = menuPack;
+          setMenuPack(null);
+          if (key === 'delete' && target) handleDeletePack(target);
+        }}
+        onClose={() => setMenuPack(null)}
       />
     </SafeAreaView>
   );
@@ -348,10 +431,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.card,
     borderRadius: 14,
-    padding: 14,
+    paddingLeft: 14,
+    paddingRight: 12,
+    paddingVertical: 14,
+    // 保证卡片足够高，中间的小箭头不会顶到右上角「更多」的命中区
+    minHeight: 94,
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: 10,
+  },
+  packMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  // 右上角浮层按钮：44x44 的命中区，图标居上显示，避开中间的小箭头
+  moreBtn: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 7,
+    zIndex: 2,
   },
   packIcon: {
     width: 44,
@@ -369,6 +474,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
+    // 给右上角的「更多」留位，长卡组名不会被压在按钮下面
+    marginRight: 28,
   },
   packSummary: {
     fontSize: 12,
@@ -389,40 +496,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textMuted,
     flexShrink: 0,
-  },
-  addMoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.borderStrong,
-    backgroundColor: Colors.backgroundAlt,
-  },
-  addMoreIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  addMoreTextWrap: {
-    flex: 1,
-  },
-  addMoreTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  addMoreHint: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
   },
   emptyWrap: {
     alignItems: 'center',

@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E9EFEA',
+    backgroundColor: '#EAF1EC',
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 80,
@@ -112,15 +112,15 @@ const styles = StyleSheet.create({
     }),
   },
   buttonDisabled: {
-    backgroundColor: '#EAE8DF',
+    backgroundColor: '#E8EDE7',
   },
   text: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#1B4B3F',
+    color: '#3B6848',
   },
   textDisabled: {
-    color: '#93A199',
+    color: '#9AA79F',
     fontWeight: '500',
   },
 });

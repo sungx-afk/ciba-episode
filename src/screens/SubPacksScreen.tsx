@@ -20,6 +20,12 @@ import { ConfirmDialog, DialogPayload } from '../components/ConfirmDialog';
 
 /** 分类卡组分页大小 */
 const SUB_PAGE_SIZE = 30;
+/**
+ * 首屏拿到空列表时的补偿重试：刚安装 / 刚同步的卡组，服务端可能还没把分类卡组生成完，
+ * 此时接口会返回 total=0 的空列表，多试几次就能拿到真实数据。
+ */
+const SUB_FIRST_RETRY = 3;
+const SUB_RETRY_DELAY_MS = 800;
 /** 未记住 tab: remember_type = 0 未记住 + 1 进行中 */
 const LEARNING_REMEMBER_TYPES = [0, 1];
 /** 已记住 tab: remember_type = 2 */
@@ -28,12 +34,6 @@ const REMEMBERED_REMEMBER_TYPES = [2];
 interface SubPacksScreenProps {
   navigation: any;
   route: any;
-}
-
-/** 合并分页数据并按 id 去重 */
-function mergePacks(prev: RemotePack[], next: RemotePack[]): RemotePack[] {
-  const seen = new Set(prev.map((p) => p.id));
-  return [...prev, ...next.filter((p) => !seen.has(p.id))];
 }
 
 /**
@@ -65,12 +65,26 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  /** 还有下一页可拉：以「上一页是否满页 / 是否有新增」为准，不单看服务端 total */
+  const [hasMore, setHasMore] = useState(true);
+  /** 列表拿空但顶层卡组显示有词：服务端还在生成，界面上给「准备中」而不是「暂无」 */
+  const [syncing, setSyncing] = useState(false);
   /** 统一弹窗状态：确认/提示一律走 ConfirmDialog */
   const [dialog, setDialog] = useState<DialogPayload | null>(null);
 
   // 请求代次：切 tab / 重新加载时丢弃旧请求
   const reqGenRef = useRef(0);
   const focusedOnceRef = useRef(false);
+  /** 列表镜像：分页游标与到底判断都读它，避免闭包里拿到过期的 subPacks */
+  const listRef = useRef<RemotePack[]>([]);
+  /** 顶层卡组详情镜像：判断「列表空但卡组有词」时读它 */
+  const packRef = useRef<RemotePack | null>(initialPack ?? null);
+  /** 连续空页计数：连着两页拉不到新数据就停，防止 total 偏大时反复空转 */
+  const emptyPageRef = useRef(0);
+
+  useEffect(() => {
+    packRef.current = pack;
+  }, [pack]);
 
   /** 进入页面即把它设为当前词库：背词页与闪卡页要拿它做词库名 */
   useEffect(() => {
@@ -114,10 +128,38 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
           rememberTypes: types,
         });
         if (gen !== reqGenRef.current) return;
-        setSubPacks((prev) => (start === 0 ? res.packs : mergePacks(prev, res.packs)));
-        setTotal(res.total);
-        if (types.includes(0)) setLearningTotal(res.total);
-        else setRememberedTotal(res.total);
+
+        const incoming = res.packs || [];
+        const prev = start === 0 ? [] : listRef.current;
+        const seen = new Set(prev.map((p) => p.id));
+        const fresh = incoming.filter((p) => !seen.has(p.id));
+        const merged = start === 0 ? incoming : [...prev, ...fresh];
+        listRef.current = merged;
+        setSubPacks(merged);
+
+        // total 可能偏小（卡组刚安装、服务端统计未就绪）：已加载条数优先
+        const serverTotal = res.total || 0;
+        const effectiveTotal = Math.max(serverTotal, merged.length);
+        setTotal(effectiveTotal);
+        if (types.includes(0)) setLearningTotal(effectiveTotal);
+        else setRememberedTotal(effectiveTotal);
+
+        if (start === 0) {
+          emptyPageRef.current = 0;
+          setSyncing(merged.length === 0 && Number(packRef.current?.card_count) > 0);
+        }
+
+        // 是否还能继续拉：
+        //  - 本页满页 → 后面大概率还有，即使已加载数 >= total 也要再探一页（total 偏小的情形）
+        //  - 本页不满 → 正常到底；但如果已加载数仍小于 total（total 偏大），再给一次机会
+        //  - 本页 0 条新增 → 累计空页，连续两次空页直接终止，避免死循环
+        if (fresh.length === 0) {
+          emptyPageRef.current += 1;
+          setHasMore(emptyPageRef.current < 2 && merged.length < serverTotal);
+        } else {
+          emptyPageRef.current = 0;
+          setHasMore(incoming.length >= SUB_PAGE_SIZE || merged.length < serverTotal);
+        }
       } catch (e: any) {
         if (gen !== reqGenRef.current) return;
         setErrorMsg(e?.message || '加载分类卡组失败');
@@ -150,13 +192,37 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
     [packId]
   );
 
+  /**
+   * 首屏加载：卡组刚安装时服务端可能还没生成完分类卡组，
+   * 接口会先返回空列表（total=0），这里静默补几次，避免用户看到「暂无分类」却怎么刷都刷不出来。
+   */
+  const loadFirstPage = useCallback(
+    async (types: number[]) => {
+      await load(0, types);
+      let gen = reqGenRef.current;
+      let tries = 0;
+      while (tries < SUB_FIRST_RETRY && listRef.current.length === 0) {
+        // 顶层卡组一个词都没有时不重试：那就是真的没有分类，不是没生成完
+        if (!(Number(packRef.current?.card_count) > 0)) break;
+        if (reqGenRef.current !== gen) return; // 期间已有别的请求接管
+        tries += 1;
+        setSyncing(true);
+        await new Promise((r) => setTimeout(r, SUB_RETRY_DELAY_MS));
+        if (reqGenRef.current !== gen) return;
+        await load(0, types, true);
+        gen = reqGenRef.current;
+      }
+    },
+    [load]
+  );
+
   // 切 tab 时重新拉取；其它情况由首次加载 / 聚焦刷新负责
   const firstLoadRef = useRef(true);
   useEffect(() => {
     if (!packId) return;
     if (firstLoadRef.current) {
       firstLoadRef.current = false;
-      load(0, LEARNING_REMEMBER_TYPES);
+      loadFirstPage(LEARNING_REMEMBER_TYPES);
       loadOtherTabCount(REMEMBERED_REMEMBER_TYPES);
       refreshPackStats();
       return;
@@ -184,8 +250,9 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
 
   const handleLoadMore = () => {
     if (loading || loadingMore || refreshing) return;
-    if (subPacks.length === 0 || subPacks.length >= total) return;
-    load(subPacks.length, currentTypes);
+    // 游标用列表镜像：合并去重后 subPacks.length 才是真实已加载条数
+    if (!hasMore || listRef.current.length === 0) return;
+    load(listRef.current.length, currentTypes);
   };
 
   /** 打开某个分类卡组的单词列表 */
@@ -248,11 +315,8 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
     const isLoadingList = isLoadingPackWords && packWordsPackId === item.id;
 
     return (
-      <TouchableOpacity
-        style={[styles.subCard, { backgroundColor: `${color}12` }]}
-        onPress={() => handleOpenSubPack(item)}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.subCard} onPress={() => handleOpenSubPack(item)} activeOpacity={0.85}>
+        {/* 分类色只留一条细色条做识别，卡面统一走白卡，避免一片花花绿绿的色块 */}
         <View style={[styles.subColorBar, { backgroundColor: color }]} />
 
         <View style={styles.subCardBody}>
@@ -266,25 +330,33 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
             <View style={styles.subCountPill}>
               <Text style={styles.subCountPillText}>{subTotal} 词</Text>
             </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
           </View>
 
           <View style={styles.subMetaRow}>
-            <Text style={styles.subMetaText}>
-              已记住 {remembered}/{subTotal}
-            </Text>
+            <Text style={styles.subMetaText}>已记住 {remembered}/{subTotal}</Text>
             {tab === 'learning' && todayCount > 0 ? (
-              <Text style={styles.subTodayText}>
-                今日 {todayLearnedCount}/{todayCount}
-              </Text>
+              <>
+                <Text style={styles.subMetaDot}>·</Text>
+                <Text style={styles.subTodayText}>
+                  今日 {todayLearnedCount}/{todayCount}
+                </Text>
+              </>
             ) : null}
           </View>
 
-          <View style={styles.subProgressWrap}>
-            <ProgressBar progress={progress} height={4} color={color} backgroundColor="#FFFFFF" />
+          <View style={styles.subProgressRow}>
+            <View style={styles.subProgressBar}>
+              <ProgressBar
+                progress={progress}
+                height={5}
+                color={color}
+                backgroundColor={Colors.divider}
+              />
+            </View>
+            <Text style={styles.subProgressText}>{Math.round(progress * 100)}%</Text>
           </View>
         </View>
-
-        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
       </TouchableOpacity>
     );
   };
@@ -392,6 +464,8 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
               <View style={styles.footerLoading}>
                 <ActivityIndicator size="small" color={Colors.primary} />
               </View>
+            ) : !hasMore && subPacks.length > 0 ? (
+              <Text style={styles.footerText}>已显示全部分类卡组</Text>
             ) : null
           }
           ListEmptyComponent={
@@ -409,12 +483,27 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
                   </TouchableOpacity>
                 </>
               ) : (
-                <>
-                  <Ionicons name="albums-outline" size={48} color={Colors.border} />
-                  <Text style={styles.emptyText}>
-                    {tab === 'remembered' ? '暂无已记住的分类卡组' : '暂无未记住的分类卡组'}
-                  </Text>
-                </>
+                syncing ? (
+                  <>
+                    <Ionicons name="time-outline" size={48} color={Colors.border} />
+                    <Text style={styles.emptyText}>卡组刚添加，分类还在准备中</Text>
+                    <Text style={styles.emptyHint}>服务端生成需要一点时间，可下拉刷新或点下面重试</Text>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={() => loadFirstPage(currentTypes)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.retryText}>重新加载</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="albums-outline" size={48} color={Colors.border} />
+                    <Text style={styles.emptyText}>
+                      {tab === 'remembered' ? '暂无已记住的分类卡组' : '暂无未记住的分类卡组'}
+                    </Text>
+                  </>
+                )
               )}
             </View>
           }
@@ -457,11 +546,16 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.divider,
     marginBottom: 12,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
   },
   summaryTop: {
     flexDirection: 'row',
@@ -536,20 +630,29 @@ const styles = StyleSheet.create({
   tabTextDone: {
     color: Colors.success,
   },
+  // 与首页卡片同一套规格：白卡 + 圆角 18 + 1px 分隔色边 + 主色柔和投影
   subCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: Colors.card,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: Colors.divider,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
   },
+  // 分类识别色：一条撑满卡片高度的细色条，比整卡染色干净
   subColorBar: {
     width: 4,
-    height: '100%',
+    alignSelf: 'stretch',
     borderRadius: 2,
-    marginRight: 10,
+    marginRight: 12,
   },
   subCardBody: {
     flex: 1,
@@ -558,46 +661,71 @@ const styles = StyleSheet.create({
   subCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   subCardName: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
+    letterSpacing: 0.2,
   },
   subCountPill: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 8,
+    backgroundColor: Colors.surfaceSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
   },
   subCountPillText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
     color: Colors.textSecondary,
   },
   subMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 4,
+    gap: 4,
+    marginTop: 5,
   },
   subMetaText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: Colors.textTertiary,
+  },
+  subMetaDot: {
+    fontSize: 12,
+    color: Colors.textMuted,
   },
   subTodayText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.primary,
     fontWeight: '600',
   },
-  subProgressWrap: {
-    marginTop: 8,
+  subProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+  },
+  subProgressBar: {
+    flex: 1,
+    minWidth: 0,
+  },
+  subProgressText: {
+    width: 34,
+    textAlign: 'right',
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: Colors.textSecondary,
   },
   footerLoading: {
     paddingVertical: 20,
     alignItems: 'center',
+  },
+  footerText: {
+    paddingVertical: 18,
+    textAlign: 'center',
+    fontSize: 12,
+    color: Colors.textMuted,
   },
   emptyWrap: {
     alignItems: 'center',
@@ -608,6 +736,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     marginTop: 12,
+    textAlign: 'center',
+  },
+  emptyHint: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 6,
     textAlign: 'center',
   },
   retryBtn: {

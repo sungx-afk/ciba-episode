@@ -17,6 +17,7 @@ import { useProgress } from '../storage/progressStore';
 import { Colors } from '../theme/colors';
 import { Header } from '../components/Header';
 import { ConfirmDialog, DialogPayload } from '../components/ConfirmDialog';
+import { SectionBadge } from '../components/SectionBadge';
 import { useAuth } from '../context/AuthContext';
 import {
   fetchNotebookDayLimit,
@@ -31,7 +32,7 @@ interface ProfileScreenProps {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user: authUser, isLoggedIn: authLoggedIn, logout: authLogout } = useAuth();
-  const { state, stats, updateSettings, resetProgress, exportProgressData, user: progressUser, isLoggedIn: progressLoggedIn, logout: progressLogout, currentPack, wordSource, currentTopPack, readRememberedTopPack } = useProgress();
+  const { state, stats, updateSettings, resetProgress, exportProgressData, user: progressUser, isLoggedIn: progressLoggedIn, logout: progressLogout } = useProgress();
 
   const user = authUser || progressUser;
   const isLoggedIn = authLoggedIn || progressLoggedIn;
@@ -51,24 +52,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [savingDayLimit, setSavingDayLimit] = useState(false);
   /** 自定义输入框里的值；在别处（如生词本学习页）设成非档位数字时回填到这里 */
   const [customLimit, setCustomLimit] = useState('');
-
-  // 当前使用的词库: 与首页顶部「我的卡组」共用同一份 currentTopPack
-  const [rememberedPackName, setRememberedPackName] = useState<string | null>(null);
-
-  // 还没进过首页时 currentTopPack 为空，先用本地记住的卡组名占位
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const remembered = await readRememberedTopPack();
-      if (alive) setRememberedPackName(remembered?.name || null);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [readRememberedTopPack, currentTopPack?.id]);
-
-  const activePackName =
-    currentTopPack?.name || rememberedPackName || currentPack?.name || '本地词库 (TOEFL 意群)';
 
   // 手机号脱敏
   const maskMobile = (m?: string) => {
@@ -236,93 +219,100 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       <Header title="我的" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* 用户概览卡片 */}
-        <View style={styles.userCard}>
-          <View style={styles.avatarWrap}>
-            <View style={[styles.avatarCircle, isVip && styles.avatarCircleVip]}>
-              <Ionicons
-                name={isLoggedIn ? 'person' : 'log-in-outline'}
-                size={32}
-                color={isVip ? Colors.gold : Colors.primary}
-              />
-            </View>
-            {/* 会员身份：头像右下角挂一枚金色小钻石，一眼可辨 */}
-            {isVip ? (
-              <View style={styles.avatarVipBadge}>
-                <Ionicons name="diamond" size={10} color={Colors.textPrimary} />
+        {/* 个人名片：深色底 + 鎏金点缀，既是身份区也是会员入口 */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroGlowGold} />
+          <View style={styles.heroGlowSoft} />
+
+          <View style={styles.heroMain}>
+            <View style={styles.avatarWrap}>
+              <View style={[styles.avatarCircle, isVip && styles.avatarCircleVip]}>
+                <Ionicons
+                  name={isLoggedIn ? 'person' : 'log-in-outline'}
+                  size={28}
+                  color={isVip ? Colors.gold : '#FFFFFF'}
+                />
               </View>
-            ) : null}
-          </View>
-          <View style={styles.userInfo}>
-            <View style={styles.userNameRow}>
-              <Text style={styles.userName} numberOfLines={1} onPress={handleUserNameTap}>
-                {isLoggedIn ? user?.nickname || user?.loginName || maskMobile(user?.mobile) || '糍粑学员' : '未登录'}
-              </Text>
-              {isLoggedIn && (
-                <TouchableOpacity
-                  style={[styles.vipButton, isVip ? styles.vipButtonVip : styles.vipButtonUpgrade]}
-                  onPress={() => navigation.navigate('Purchase')}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons
-                    name={isVip ? 'diamond' : 'diamond-outline'}
-                    size={12}
-                    color={isVip ? Colors.textPrimary : Colors.gold}
-                  />
-                  <Text style={[styles.vipButtonText, isVip && styles.vipButtonTextVip]}>
-                    {isVip ? 'VIP 会员' : '升级会员'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              {/* 会员身份：头像右下角挂一枚金色小钻石，一眼可辨 */}
+              {isVip ? (
+                <View style={styles.avatarVipBadge}>
+                  <Ionicons name="diamond" size={10} color={Colors.textPrimary} />
+                </View>
+              ) : null}
             </View>
-            <Text style={styles.userSub}>
-              {isLoggedIn
-                ? (user?.mobile ? maskMobile(user.mobile) : user?.email)
-                : '登录后可同步词书与多端学习进度'}
-            </Text>
+
+            <View style={styles.heroInfo}>
+              <Text style={styles.heroName} numberOfLines={1} onPress={handleUserNameTap}>
+                {isLoggedIn
+                  ? user?.nickname || user?.loginName || maskMobile(user?.mobile) || '糍粑学员'
+                  : '未登录'}
+              </Text>
+              <Text style={styles.heroSub} numberOfLines={1}>
+                {isLoggedIn
+                  ? user?.mobile
+                    ? maskMobile(user.mobile)
+                    : user?.email || '学习进度已开启多端同步'
+                  : '登录后可同步词书与多端学习进度'}
+              </Text>
+            </View>
           </View>
-          {isLoggedIn ? (
-            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="log-out-outline" size={18} color={Colors.pinwheelRed} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.loginBtnSmall}
-              onPress={() => navigation.navigate('Login')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.loginBtnSmallText}>登录</Text>
-            </TouchableOpacity>
-          )}
+
+          <View style={styles.heroActions}>
+            {isLoggedIn ? (
+              <TouchableOpacity
+                style={[styles.vipButton, isVip ? styles.vipButtonVip : styles.vipButtonUpgrade]}
+                onPress={() => navigation.navigate('Purchase')}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={isVip ? 'diamond' : 'diamond-outline'}
+                  size={12}
+                  color={isVip ? Colors.textPrimary : Colors.gold}
+                />
+                <Text style={[styles.vipButtonText, isVip && styles.vipButtonTextVip]}>
+                  {isVip ? 'VIP 会员' : '升级会员'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.heroHint}>会员权益随账号同步</Text>
+            )}
+
+            {isLoggedIn ? (
+              <TouchableOpacity
+                style={styles.heroLogout}
+                onPress={handleLogout}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.heroLogoutText}>退出登录</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.heroLogin}
+                onPress={() => navigation.navigate('Login')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.heroLoginText}>登录 / 注册</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* 词库切换 */}
-        <TouchableOpacity
-          style={[styles.sectionCard, styles.rowCard]}
-          onPress={() => navigation.navigate('BookSelect')}
-          activeOpacity={0.7}
-        >
-          <View style={styles.actionLeft}>
-            <Ionicons name="library-outline" size={20} color={Colors.primary} />
-            <View style={styles.packInfo}>
-              <Text style={styles.actionLabel}>切换词库</Text>
-              <Text style={styles.settingDesc} numberOfLines={1}>
-                当前: {activePackName}
-              </Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-        </TouchableOpacity>
-
-        {/* 学习总览 */}
-        <View style={styles.statsCard}>
-          <Text style={styles.cardHeaderTitle}>学习统计</Text>
+        {/* 学习数据：四个关键指标，一眼看到坚持与产出 */}
+        <View style={styles.card}>
+          <SectionBadge icon="stats-chart-outline" label="学习数据" color={Colors.primary} />
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
+              <View style={[styles.statIcon, { backgroundColor: Colors.coral + '1A' }]}>
+                <Ionicons name="flame-outline" size={15} color={Colors.coral} />
+              </View>
               <Text style={styles.statNum}>{stats.streakDays}</Text>
               <Text style={styles.statLbl}>连续打卡(天)</Text>
             </View>
             <View style={styles.statBox}>
+              <View style={[styles.statIcon, { backgroundColor: Colors.success + '1A' }]}>
+                <Ionicons name="checkmark-done-outline" size={15} color={Colors.success} />
+              </View>
               <Text style={styles.statNum}>{stats.masteredCount}</Text>
               <Text style={styles.statLbl}>已掌握单词</Text>
             </View>
@@ -330,8 +320,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         </View>
 
         {/* 生词本学习目标：对应生词本设置里的「每日添加新学习卡片数量」 */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.cardHeaderTitle}>生词本学习目标</Text>
+        <View style={styles.card}>
+          <SectionBadge icon="flag-outline" label="生词本学习目标" color={Colors.coral} />
           <Text style={styles.settingDesc}>每天添加到生词本的新学习卡片数量</Text>
           <View style={styles.goalRow}>
             {NOTEBOOK_DAY_LIMIT_OPTIONS.map((goal) => {
@@ -368,12 +358,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         </View>
 
         {/* 发音设置 */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.cardHeaderTitle}>发音与朗读</Text>
+        <View style={styles.card}>
+          <SectionBadge icon="volume-high-outline" label="发音与朗读" color={Colors.pinwheelBlue} />
 
           {/* 口音 */}
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>口音类型</Text>
+            <View style={styles.rowLeading}>
+              <Ionicons name="globe-outline" size={18} color={Colors.primary} />
+              <Text style={styles.settingLabel}>口音类型</Text>
+            </View>
             <View style={styles.accentToggle}>
               <TouchableOpacity
                 style={[styles.accentOption, state.accent === 'en-US' && styles.accentOptionActive]}
@@ -400,9 +393,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
           {/* 自动朗读 */}
           <View style={[styles.settingRow, styles.borderTop]}>
-            <View>
-              <Text style={styles.settingLabel}>进入新词自动朗读</Text>
-              <Text style={styles.settingDesc}>切换卡片时自动播放发音</Text>
+            <View style={styles.rowLeading}>
+              <Ionicons name="volume-medium-outline" size={18} color={Colors.primary} />
+              <View>
+                <Text style={styles.settingLabel}>进入新词自动朗读</Text>
+                <Text style={styles.settingDesc}>切换卡片时自动播放发音</Text>
+              </View>
             </View>
             <Switch
               value={state.autoPronounce}
@@ -414,36 +410,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         </View>
 
         {/* 数据与存储 */}
-        {/* <View style={styles.sectionCard}>
-          <Text style={styles.cardHeaderTitle}>数据与隐私</Text>
+        {/*
+          数据与存储（暂未开放，恢复时把注释打开即可）：
+          <View style={styles.card}>
+            <SectionBadge icon="server-outline" label="数据与隐私" color={Colors.textTertiary} />
 
-          <TouchableOpacity style={styles.actionRow} onPress={handleExport} activeOpacity={0.7}>
-            <View style={styles.actionLeft}>
-              <Ionicons name="share-outline" size={20} color={Colors.primary} />
-              <Text style={styles.actionLabel}>导出与备份学习记录</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.settingRow} onPress={handleExport} activeOpacity={0.7}>
+              <View style={styles.rowLeading}>
+                <Ionicons name="share-outline" size={20} color={Colors.primary} />
+                <Text style={styles.settingLabel}>导出与备份学习记录</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionRow, styles.borderTop]}
-            onPress={handleReset}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionLeft}>
-              <Ionicons name="trash-outline" size={20} color={Colors.pinwheelRed} />
-              <Text style={[styles.actionLabel, { color: Colors.pinwheelRed }]}>
-                清空全部学习记录
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-          </TouchableOpacity>
-        </View> */}
+            <TouchableOpacity
+              style={[styles.settingRow, styles.borderTop]}
+              onPress={handleReset}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowLeading}>
+                <Ionicons name="trash-outline" size={20} color={Colors.pinwheelRed} />
+                <Text style={[styles.settingLabel, { color: Colors.pinwheelRed }]}>
+                  清空全部学习记录
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+        */}
 
-        {/* 关于 */}
-        <View style={styles.aboutFooter}>
-          <Text style={styles.aboutText}>糍粑看美剧学英语 · CibaEnglishEpisode v1.0.0</Text>
-          <Text style={styles.aboutSub}> 纯粹的分类单词记忆工具</Text>
+        {/* 关于：页脚留一枚小绿叶，和整站的「学习」调性收尾 */}
+        <View style={styles.aboutWrap}>
+          <View style={styles.aboutBadge}>
+            <Ionicons name="leaf-outline" size={15} color={Colors.primary} />
+          </View>
+          <Text style={styles.aboutTitle}>糍粑看美剧学英语</Text>
+          <Text style={styles.aboutSub}>CibaEnglishEpisode v1.0.0 · 纯粹的分类单词记忆工具</Text>
         </View>
       </ScrollView>
 
@@ -483,38 +485,67 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  userCard: {
+  // ── 个人名片：深色底 + 鎏金光晕，与普通白卡形成层次 ──
+  heroCard: {
+    backgroundColor: Colors.dark,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(194,154,78,0.32)',
+    overflow: 'hidden',
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  heroGlowGold: {
+    position: 'absolute',
+    right: -34,
+    top: -46,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(194,154,78,0.22)',
+  },
+  heroGlowSoft: {
+    position: 'absolute',
+    left: -26,
+    bottom: -58,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  heroMain: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 16,
   },
   avatarWrap: {
-    width: 52,
-    height: 52,
+    width: 54,
+    height: 54,
     marginRight: 14,
   },
   avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.primaryLight,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   // 会员头像：金环 + 金色底，与普通用户区分开
   avatarCircleVip: {
-    backgroundColor: Colors.gold + '1A',
+    backgroundColor: 'rgba(194,154,78,0.24)',
     borderWidth: 2,
     borderColor: Colors.gold,
   },
   avatarVipBadge: {
     position: 'absolute',
-    right: 11,
+    right: 10,
     bottom: -2,
     width: 18,
     height: 18,
@@ -523,34 +554,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: Colors.card,
+    borderColor: Colors.dark,
     shadowColor: Colors.gold,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 4,
   },
-  userInfo: {
+  heroInfo: {
     flex: 1,
   },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  userName: {
+  heroName: {
     fontSize: 18,
     fontWeight: '800',
-    color: Colors.textPrimary,
-    flexShrink: 1,
+    color: '#FFFFFF',
+  },
+  heroSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.66)',
+    marginTop: 4,
+  },
+  heroActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  heroHint: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  heroLogout: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  heroLogoutText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.92)',
+  },
+  heroLogin: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.gold,
+  },
+  heroLoginText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.dark,
   },
   vipButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    gap: 4,
   },
   // 已是会员：金色实心 + 外发光，身份展示更醒目
   vipButtonVip: {
@@ -561,11 +623,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  // 未开通：金色描边浅底，作为升级入口
+  // 未开通：金色描边 + 深底上的金雾，作为升级入口（hero 是深色卡，透明度要比普通卡高）
   vipButtonUpgrade: {
     borderWidth: 1,
-    borderColor: Colors.gold + '66',
-    backgroundColor: Colors.gold + '14',
+    borderColor: Colors.gold + '99',
+    backgroundColor: 'rgba(194,154,78,0.18)',
   },
   vipButtonText: {
     fontSize: 11,
@@ -576,38 +638,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     letterSpacing: 0.3,
   },
-  userSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 3,
-  },
-  logoutBtn: {
-    padding: 8,
-  },
-  loginBtnSmall: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  loginBtnSmallText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  statsCard: {
+  // ── 通用白卡 + 块内的小指标块 ──
+  card: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     borderWidth: 1,
     borderColor: Colors.border,
-    marginBottom: 16,
-  },
-  cardHeaderTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -617,28 +655,33 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: Colors.background,
-    borderRadius: 12,
+    backgroundColor: Colors.surfaceSoft,
+    borderRadius: 14,
     padding: 12,
+    gap: 6,
+  },
+  statIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   statNum: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    color: Colors.primary,
+    color: Colors.textPrimary,
   },
   statLbl: {
     fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 4,
+    color: Colors.textTertiary,
   },
-  sectionCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 16,
+  // 行内的「图标 + 文案」组合（口音/导出等行都会用到）
+  rowLeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
   },
   // 生词本学习目标档位（与「发音与朗读」的口音切换同一套观感）
   goalRow: {
@@ -732,43 +775,27 @@ const styles = StyleSheet.create({
   accentTextActive: {
     color: Colors.primary,
   },
-  actionRow: {
-    flexDirection: 'row',
+  aboutWrap: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
+    paddingVertical: 24,
+    gap: 6,
   },
-  actionLeft: {
-    flexDirection: 'row',
+  aboutBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.primaryLight,
     alignItems: 'center',
-    gap: 10,
-    flex: 1,
+    justifyContent: 'center',
+    marginBottom: 2,
   },
-  packInfo: {
-    flex: 1,
-  },
-  rowCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  actionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  aboutFooter: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  aboutText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textMuted,
+  aboutTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textSecondary,
   },
   aboutSub: {
     fontSize: 11,
     color: Colors.textMuted,
-    marginTop: 4,
   },
 });

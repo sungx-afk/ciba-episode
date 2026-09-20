@@ -50,7 +50,7 @@ export const AuthInput: React.FC<AuthInputProps> = ({
           <Ionicons
             name={iconName}
             size={19}
-            color={isFocused ? Colors.primary : '#93A199'}
+            color={isFocused ? Colors.primary : '#9AA79F'}
             style={styles.leftIcon}
           />
         )}
@@ -64,7 +64,7 @@ export const AuthInput: React.FC<AuthInputProps> = ({
 
         <TextInput
           style={[styles.input, style]}
-          placeholderTextColor="#93A199"
+          placeholderTextColor="#9AA79F"
           secureTextEntry={isPassword && !showPassword}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -84,7 +84,7 @@ export const AuthInput: React.FC<AuthInputProps> = ({
             <Ionicons
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
               size={19}
-              color="#93A199"
+              color="#9AA79F"
             />
           </TouchableOpacity>
         )}
@@ -97,7 +97,7 @@ export const AuthInput: React.FC<AuthInputProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close-circle" size={17} color="#93A199" />
+            <Ionicons name="close-circle" size={17} color="#9AA79F" />
           </TouchableOpacity>
         )}
 
@@ -117,14 +117,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3C4A43',
+    color: '#46534C',
     marginBottom: 6,
     marginLeft: 4,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EDEBE3',
+    backgroundColor: '#ECEEE7',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'transparent',
@@ -161,19 +161,19 @@ const styles = StyleSheet.create({
   prefixText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#3C4A43',
+    color: '#46534C',
   },
   prefixDivider: {
     width: 1,
     height: 14,
-    backgroundColor: '#C8C5B7',
+    backgroundColor: '#C3CABC',
     marginLeft: 8,
   },
   input: {
     flex: 1,
     minWidth: 0,
     fontSize: 16,
-    color: '#17231E',
+    color: '#1F2B24',
     height: '100%',
     paddingVertical: 0,
     fontWeight: '500',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: '#B2503F',
+    color: '#AC5C4C',
     marginTop: 4,
     marginLeft: 6,
   },

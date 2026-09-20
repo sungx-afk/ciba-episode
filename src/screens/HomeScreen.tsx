@@ -28,6 +28,29 @@ interface HomeScreenProps {
   navigation: any;
 }
 
+/** 头图底部渐隐的层数：24 段肉眼已看不出条带，继续加只会白增节点 */
+const HERO_FADE_STEPS = 24;
+/** 渐隐从头部区 24% 高度处开始，到最底部完全变成页面底色 */
+const HERO_FADE_START = 0.24;
+
+/**
+ * 用一叠「页面底色 + 递增透明度」的横条拼出线性渐变，
+ * 让头图下缘平滑溶进页面背景，而不是被容器剪出一条硬边。
+ * 这样就不必引入 expo-linear-gradient（新增原生依赖要重新出包）。
+ */
+const HERO_FADE_BANDS = Array.from({ length: HERO_FADE_STEPS }, (_, i) => {
+  const span = 1 - HERO_FADE_START;
+  const from = HERO_FADE_START + span * (i / HERO_FADE_STEPS);
+  const to = HERO_FADE_START + span * ((i + 1) / HERO_FADE_STEPS);
+  return {
+    key: `hero-fade-${i}`,
+    top: `${(from * 100).toFixed(4)}%` as `${number}%`,
+    height: `${((to - from) * 100).toFixed(4)}%` as `${number}%`,
+    // 取中值并轻度缓动：上半段留住画面，下半段才真正溶掉
+    opacity: Math.pow((i + 0.5) / HERO_FADE_STEPS, 1.25),
+  };
+});
+
 export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const {
     stats,
@@ -342,18 +365,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   /**
    * 顶部头图区：淡彩水墨山水打底，头像/昵称/会员一眼可见，
-   * 下面压一句 slogan 与连续学习天数，收在一条细线里。
+   * 下面压一句 slogan 与连续学习天数，最后渐隐溶进页面底色。
    * 整块跟随页面滚动（不再固定在顶部），首屏更像一张「宣纸封面」。
    */
   const renderHero = () => (
     <View style={styles.hero}>
       <Image
-        source={require('../assets/header-ink.jpg')}
+        source={require('../assets/header-study.jpg')}
         style={styles.heroBg}
         resizeMode="cover"
       />
       {/* 极淡的米白柔光：压住背景、托亮文字，也顺手柔化图片边缘 */}
       <View style={styles.heroVeil} pointerEvents="none" />
+
+      {/* 底部渐隐：把画面下缘溶进页面底色，避免头图被裁成一条硬边 */}
+      <View style={styles.heroFade} pointerEvents="none">
+        {HERO_FADE_BANDS.map((band) => (
+          <View
+            key={band.key}
+            style={[
+              styles.heroFadeBand,
+              { top: band.top, height: band.height, opacity: band.opacity },
+            ]}
+          />
+        ))}
+      </View>
 
       {authLoading ? (
         <View style={styles.heroLoading}>
@@ -438,7 +474,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Text style={styles.heroStreakText}>{stats.streakDays} 天</Text>
         </View>
       </View>
-      <View style={styles.heroRule} />
     </View>
   );
 
@@ -448,7 +483,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <View style={styles.tipHeader}>
         <View style={styles.tipTitleRow}>
           <Ionicons name="bulb" size={15} color={Colors.accent} />
-          <Text style={styles.tipTitle}>边看美剧，边擦生词</Text>
+          <Text style={styles.tipTitle}>边看美剧，边学生词</Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
       </View>
@@ -459,10 +494,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  /** 页脚：一句短引 + 快速开始学习入口 */
+  /** 页脚：只留一句短引，不再放「开始学习」按钮（入口交给上面两张卡片） */
   const renderQuoteFooter = () => (
     <View style={styles.quoteWrap}>
-      <Ionicons name="leaf-outline" size={38} color="rgba(27,75,63,0.14)" />
+      <Ionicons name="leaf-outline" size={38} color="rgba(59,104,72,0.14)" />
       <View style={styles.quoteTextWrap}>
         <Text style={styles.quoteEn} numberOfLines={1}>
           The best time to start is now.
@@ -471,14 +506,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           最好的开始，就是现在。
         </Text>
       </View>
-      <TouchableOpacity
-        style={styles.quoteBtn}
-        onPress={handleOpenBookmarks}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="play" size={13} color="#FFFFFF" />
-        <Text style={styles.quoteBtnText}>开始学习</Text>
-      </TouchableOpacity>
     </View>
   );
 
@@ -578,11 +605,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {renderNotebookMetric('总数量', notebook?.totalWords ?? '-', Colors.accent)}
         </View>
 
-        {/* 底部入口：主色实心按钮，最醒目的一条路径 */}
+        {/* 底部入口：浅米底 + 苍绿字，只做指示不做重按钮 */}
         <View style={styles.primaryCta}>
-          <Ionicons name="book-outline" size={17} color="#FFFFFF" />
+          <Ionicons name="book-outline" size={16} color={Colors.primary} />
           <Text style={styles.primaryCtaText}>进入生词本，开始今日学习</Text>
-          <Ionicons name="chevron-forward" size={15} color="rgba(255,255,255,0.85)" />
+          <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
         </View>
       </TouchableOpacity>
     );
@@ -668,9 +695,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
       ) : (
         <View style={styles.softCta}>
-          <Ionicons name="albums-outline" size={16} color={Colors.primary} />
           <Text style={styles.softCtaText}>查看全部卡组，挑一个开始学习</Text>
-          <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
+          <Ionicons name="chevron-forward" size={13} color={Colors.textMuted} />
         </View>
       )}
     </TouchableOpacity>
@@ -706,7 +732,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {/* ③ 电脑端插件说明 */}
           {renderTipCard()}
 
-          {/* ④ 页脚：一句短引 + 开始学习 */}
+          {/* ④ 页脚：一句短引 */}
           {renderQuoteFooter()}
         </View>
       </ScrollView>
@@ -744,25 +770,39 @@ const styles = StyleSheet.create({
 
   // ── 顶部头图区：水墨山水打底，信息压在画面下部 ──
   hero: {
-    minHeight: 186,
+    minHeight: 200,
     paddingHorizontal: 18,
     paddingTop: 14,
-    paddingBottom: 6,
+    // 底部留一点余量给渐隐，slogan 不至于贴在溶掉的位置上
+    paddingBottom: 14,
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
-  // 背景图：铺满宽度、顶部对齐，底部多出来的部分被容器裁掉
+  // 背景图：铺满整个头图区，多出来的部分被容器裁掉。
+  // 注意必须显式给宽高：Web 上 Image 若只给 left/right + aspectRatio（无显式宽高），
+  // 会退化成图片原始像素尺寸（1080x633），被 overflow 一裁就只剩左上角一片空白。
   heroBg: {
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 0,
-    aspectRatio: 1080 / 633,
+    width: '100%',
+    height: '100%',
   },
   // 极淡柔光：压住画面、托亮文字，也顺手柔化图片下缘
   heroVeil: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(248,247,242,0.34)',
+  },
+  // 底部渐隐容器：叠在图片之上、内容之下，只负责把下缘溶成页面底色
+  heroFade: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  // 单段渐隐条：颜色就是页面底色，靠不同的 opacity 拼出渐变
+  heroFadeBand: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.background,
   },
   heroLoading: {
     flexDirection: 'row',
@@ -793,7 +833,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(27,75,63,0.14)',
+    borderColor: 'rgba(59,104,72,0.14)',
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -841,7 +881,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.76)',
     borderWidth: 1,
-    borderColor: 'rgba(27,75,63,0.12)',
+    borderColor: 'rgba(59,104,72,0.12)',
   },
   heroSloganRow: {
     marginTop: 26,
@@ -870,11 +910,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.accent,
-  },
-  heroRule: {
-    marginTop: 12,
-    height: 1,
-    backgroundColor: 'rgba(27,75,63,0.18)',
   },
 
   // ── 通用卡片（生词本 / 我的卡组同款） ──
@@ -984,43 +1019,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
   },
 
-  // ── 两枚入口按钮 ──
-  // 生词本：墨绿实心，一屏里最重的一个动作
+  // ── 两枚入口（都做成轻指示，不抢头图与数据的视觉重心）──
+  // 生词本：浅米底 + 苍绿字
   primaryCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 14,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  primaryCtaText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  // 我的卡组：浅米底 + 墨绿字，弱一档
-  softCta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
     marginTop: 14,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.primaryLight,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.surfaceSoft,
+  },
+  primaryCtaText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  // 我的卡组：无底色，只有一行苍绿小字，比生词本再弱一档
+  softCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 10,
+    height: 34,
   },
   softCtaText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: Colors.primary,
   },
 
@@ -1129,7 +1156,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: Colors.paper,
     borderWidth: 1,
-    borderColor: 'rgba(192,146,63,0.18)',
+    borderColor: 'rgba(194,154,78,0.18)',
   },
   tipHeader: {
     flexDirection: 'row',
@@ -1182,26 +1209,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.primaryDark,
   },
-  quoteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    height: 42,
-    paddingHorizontal: 16,
-    borderRadius: 21,
-    backgroundColor: Colors.primary,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  quoteBtnText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
   // ── 头图里的会员标签（金底 + 深墨绿字） ──
   vipTag: {
     flexDirection: 'row',
