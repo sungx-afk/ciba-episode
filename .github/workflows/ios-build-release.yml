@@ -44,33 +44,32 @@ jobs:
           cd ios
           pod install --repo-update 2>&1 | tee ../build/pod-install.log
 
-      - name: Build & Archive iOS App
+      # 直接 build（不做 archive）：无签名打包不需要 install 环节，
+      # 产物必定落在 DerivedData/Build/Products/Release-iphoneos，不受 SKIP_INSTALL 影响
+      - name: Build iOS App (Unsigned)
         run: |
           set -o pipefail
           WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
-          # scheme 必须取 App 自己的：workspace 里还混着 Pods-*.scheme，
-          # 选错的话 archive 会「成功」但产物里根本没有 .app
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);const list=(j.workspace&&j.workspace.schemes)||[];const app=list.filter(x=>!/^Pods/i.test(x));console.log((app[0]||list[0]||"").trim())}catch(e){console.log("")}})' || true)
+          APP_NAME=$(node -p "require('./app.json').expo.name" 2>/dev/null || echo "")
+          # scheme 必须取 App 自己的：workspace 里混着 boost / Pods-* 等三方 scheme，
+          # 取错会「BUILD/ARCHIVE SUCCEEDED」但产物里没有 .app
+          SCHEME=$(node tools/pick-ios-scheme.js "$WORKSPACE" "$APP_NAME" || true)
           if [ -z "$SCHEME" ]; then
             SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           fi
-          echo "Building Workspace: $WORKSPACE, Scheme: $SCHEME"
-          rm -rf build/App.xcarchive
+          echo "Building Workspace: $WORKSPACE, Scheme: $SCHEME, App: $APP_NAME"
+          rm -rf build/DerivedData build/App.xcarchive
           mkdir -p build
-          # SKIP_INSTALL=NO：Expo/RN 模板在 Release 下默认是 YES，
-          # 那样 xcodebuild 会「ARCHIVE SUCCEEDED」但 Products 是空的（.app 不落盘）
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
-            -archivePath build/App.xcarchive \
             -derivedDataPath build/DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            SKIP_INSTALL=NO \
-            clean archive 2>&1 | tee build/xcodebuild.log
+            clean build 2>&1 | tee build/xcodebuild.log
 
       # 把真正的编译错误提到 Annotations，失败时不用翻整份日志
       - name: Surface Build Errors
@@ -85,35 +84,17 @@ jobs:
           node tools/surface-xcode-errors.js build/pod-install.log pod-install
           node tools/surface-xcode-errors.js build/xcodebuild.log xcodebuild
 
-      # 打包前先确认 xcarchive 里真的有 .app，否则在下一步给出可定位的诊断
-      - name: Locate Archived App
+      # 打包前先确认真的编出了 .app，找不到就把目录和日志关键点打出来
+      - name: Locate Built App
         run: |
-          ARCHIVE="build/App.xcarchive"
-          if [ ! -d "$ARCHIVE" ]; then
-            echo "::error title=archive::未生成 $ARCHIVE，xcodebuild 未产出归档"
-            ls -la build 2>/dev/null | head -20
-            exit 1
-          fi
-
-          echo "== $ARCHIVE 结构 =="
-          find "$ARCHIVE" -maxdepth 3 2>/dev/null | head -30
-          echo "== 归档 Info.plist 概要 =="
-          plutil -p "$ARCHIVE/Info.plist" 2>/dev/null | head -20 || true
-
-          # 首选归档里的 .app；归档没落盘时，退回 DerivedData 的 Release-iphoneos 产物
-          APP_PATH=$(find "$ARCHIVE" -maxdepth 4 -name "*.app" -type d 2>/dev/null | head -n 1)
+          APP_PATH=$(find build/DerivedData/Build/Products -maxdepth 2 -name "*.app" -type d 2>/dev/null | head -n 1)
           if [ -z "$APP_PATH" ]; then
-            APP_PATH=$(find build/DerivedData/Build/Products -maxdepth 2 -name "*.app" -type d 2>/dev/null | head -n 1)
-            [ -n "$APP_PATH" ] && echo "归档为空，改用 DerivedData 产物: $APP_PATH"
-          fi
-
-          if [ -z "$APP_PATH" ]; then
-            echo "::error title=archive::既没在 $ARCHIVE 也没在 DerivedData 里找到 .app"
-            echo "归档 Info.plist 的 ApplicationProperties:"
-            plutil -extract ApplicationProperties xml1 -o - "$ARCHIVE/Info.plist" 2>/dev/null | head -20 || true
-            echo "Release-iphoneos 目录:"
+            echo "::error title=build::DerivedData 里没有 .app（多半还是 scheme 选错）"
+            echo "Products 目录:"
+            ls -la build/DerivedData/Build/Products 2>/dev/null | head -20 || true
+            echo "Release-iphoneos:"
             ls -la build/DerivedData/Build/Products/Release-iphoneos 2>/dev/null | head -30 || true
-            grep -E "ARCHIVE SUCCEEDED|ARCHIVE FAILED|BUILD FAILED|error:|note:" build/xcodebuild.log 2>/dev/null | tail -20
+            grep -E "BUILD SUCCEEDED|BUILD FAILED|error:|Scheme" build/xcodebuild.log 2>/dev/null | tail -20
             exit 1
           fi
 
@@ -122,11 +103,11 @@ jobs:
 
       - name: Package IPA
         run: |
-          APP_PATH="${APP_PATH:-$(find build/App.xcarchive build/DerivedData/Build/Products -maxdepth 4 -name '*.app' -type d 2>/dev/null | head -n 1)}"
+          APP_PATH="${APP_PATH:-$(find build/DerivedData/Build/Products -maxdepth 2 -name '*.app' -type d 2>/dev/null | head -n 1)}"
           rm -rf Payload
           mkdir -p Payload
-          cp -r "$APP_PATH" Payload/
-          zip -qr CibaEnglishEpisode-iOS.ipa Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry CibaEnglishEpisode-iOS.ipa Payload
           mkdir -p build-output
           cp CibaEnglishEpisode-iOS.ipa build-output/CibaEnglishEpisode-iOS-latest.ipa
 
