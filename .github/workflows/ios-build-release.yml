@@ -48,8 +48,14 @@ jobs:
         run: |
           set -o pipefail
           WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
-          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | node -p "JSON.parse(require('fs').readFileSync(0)).workspace.schemes[0]" || echo "app")
+          # scheme 必须取 App 自己的：workspace 里还混着 Pods-*.scheme，
+          # 选错的话 archive 会「成功」但产物里根本没有 .app
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);const list=(j.workspace&&j.workspace.schemes)||[];const app=list.filter(x=>!/^Pods/i.test(x));console.log((app[0]||list[0]||"").trim())}catch(e){console.log("")}})' || true)
+          if [ -z "$SCHEME" ]; then
+            SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          fi
           echo "Building Workspace: $WORKSPACE, Scheme: $SCHEME"
+          rm -rf build/App.xcarchive
           mkdir -p build
           xcodebuild -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
@@ -75,10 +81,36 @@ jobs:
           node tools/surface-xcode-errors.js build/pod-install.log pod-install
           node tools/surface-xcode-errors.js build/xcodebuild.log xcodebuild
 
+      # 打包前先确认 xcarchive 里真的有 .app，否则在下一步给出可定位的诊断
+      - name: Locate Archived App
+        run: |
+          ARCHIVE="build/App.xcarchive"
+          if [ ! -d "$ARCHIVE" ]; then
+            echo "::error title=archive::未生成 $ARCHIVE，xcodebuild 未产出归档"
+            ls -la build 2>/dev/null | head -20
+            exit 1
+          fi
+
+          echo "== $ARCHIVE 结构 =="
+          find "$ARCHIVE" -maxdepth 3 2>/dev/null | head -30
+
+          APP_PATH=$(find "$ARCHIVE" -maxdepth 4 -name "*.app" -type d 2>/dev/null | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error title=archive::$ARCHIVE 里没有 .app（多半是 scheme 选成了 Pods-*）"
+            ls -R "$ARCHIVE" 2>/dev/null | head -40
+            grep -E "ARCHIVE SUCCEEDED|ARCHIVE FAILED|BUILD FAILED|error:" build/xcodebuild.log 2>/dev/null | tail -20
+            exit 1
+          fi
+
+          echo "找到 App: $APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+
       - name: Package IPA
         run: |
+          APP_PATH="${APP_PATH:-$(find build/App.xcarchive -maxdepth 4 -name '*.app' -type d | head -n 1)}"
+          rm -rf Payload
           mkdir -p Payload
-          cp -r build/App.xcarchive/Products/Applications/*.app Payload/
+          cp -r "$APP_PATH" Payload/
           zip -qr CibaEnglishEpisode-iOS.ipa Payload
           mkdir -p build-output
           cp CibaEnglishEpisode-iOS.ipa build-output/CibaEnglishEpisode-iOS-latest.ipa
