@@ -1330,7 +1330,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   opDefault: {
-    backgroundColor: '#F0F4F6',
+    backgroundColor: '#EAE8DF',
   },
   opDelay: {
     fontSize: 12,
@@ -1344,7 +1344,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   opDefaultText: {
-    color: '#5A7A8A',
+    color: '#63736B',
   },
   // 右下角浮动「已记住」（bottom 由组件按操作栏高度 + 安全区动态给）
   floatRemember: {

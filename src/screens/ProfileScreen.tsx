@@ -249,7 +249,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             {/* 会员身份：头像右下角挂一枚金色小钻石，一眼可辨 */}
             {isVip ? (
               <View style={styles.avatarVipBadge}>
-                <Ionicons name="diamond" size={10} color="#FFFFFF" />
+                <Ionicons name="diamond" size={10} color={Colors.textPrimary} />
               </View>
             ) : null}
           </View>
@@ -267,7 +267,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   <Ionicons
                     name={isVip ? 'diamond' : 'diamond-outline'}
                     size={12}
-                    color={isVip ? '#FFFFFF' : Colors.gold}
+                    color={isVip ? Colors.textPrimary : Colors.gold}
                   />
                   <Text style={[styles.vipButtonText, isVip && styles.vipButtonTextVip]}>
                     {isVip ? 'VIP 会员' : '升级会员'}
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     color: Colors.gold,
   },
   vipButtonTextVip: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: 0.3,
   },
   userSub: {

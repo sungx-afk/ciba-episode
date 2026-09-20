@@ -155,7 +155,7 @@ export const ForgotPasswordScreen: React.FC = () => {
             activeOpacity={0.7}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="chevron-back" size={22} color="#35566A" />
+            <Ionicons name="chevron-back" size={22} color="#3C4A43" />
           </TouchableOpacity>
           <Text style={styles.navTitle}>找回密码</Text>
           <View style={{ width: 36 }} />
@@ -283,7 +283,7 @@ export const ForgotPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FBFC',
+    backgroundColor: '#F5F4EF',
   },
   container: {
     flex: 1,
@@ -299,14 +299,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EEF5F7',
+    backgroundColor: '#EDEBE3',
     alignItems: 'center',
     justifyContent: 'center',
   },
   navTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E3A4C',
+    color: '#17231E',
   },
   scroll: {
     flex: 1,
@@ -323,12 +323,12 @@ const styles = StyleSheet.create({
   headerHeroTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#1E3A4C',
+    color: '#17231E',
     letterSpacing: -0.3,
   },
   headerHeroSub: {
     fontSize: 13,
-    color: '#5A7A8A',
+    color: '#63736B',
     marginTop: 4,
   },
   floatingCard: {
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     paddingBottom: 22,
     ...Platform.select({
       ios: {
-        shadowColor: '#4A90A4',
+        shadowColor: '#1B4B3F',
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.08,
         shadowRadius: 20,
@@ -364,12 +364,12 @@ const styles = StyleSheet.create({
   cardTabText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#8BA5B5',
+    color: '#93A199',
   },
   cardTabTextActive: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1E3A4C',
+    color: '#17231E',
   },
   cardTabIndicator: {
     position: 'absolute',

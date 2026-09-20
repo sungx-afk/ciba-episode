@@ -139,7 +139,7 @@ export const RegisterScreen: React.FC = () => {
                 activeOpacity={0.7}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="chevron-back" size={22} color="#35566A" />
+                <Ionicons name="chevron-back" size={22} color="#3C4A43" />
               </TouchableOpacity>
               <Text style={styles.navTitle}>创建手机账号</Text>
               <View style={{ width: 38 }} />
@@ -231,7 +231,7 @@ export const RegisterScreen: React.FC = () => {
                   <Ionicons
                     name={agreeTerms ? 'checkmark-circle' : 'ellipse-outline'}
                     size={16}
-                    color={agreeTerms ? Colors.primary : '#8BA5B5'}
+                    color={agreeTerms ? Colors.primary : '#93A199'}
                   />
                   <Text style={[styles.termsText, styles.termsPrefix]}>
                     注册即代表您已同意
@@ -284,7 +284,7 @@ export const RegisterScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F8FBFC',
+    backgroundColor: '#F5F4EF',
   },
   container: {
     flex: 1,
@@ -312,14 +312,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#EEF5F7',
+    backgroundColor: '#EDEBE3',
     alignItems: 'center',
     justifyContent: 'center',
   },
   navTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1E3A4C',
+    color: '#17231E',
   },
   headerHero: {
     marginBottom: 20,
@@ -328,12 +328,12 @@ const styles = StyleSheet.create({
   headerHeroTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#1E3A4C',
+    color: '#17231E',
     letterSpacing: -0.4,
   },
   headerHeroSub: {
     fontSize: 13,
-    color: '#5A7A8A',
+    color: '#63736B',
     marginTop: 6,
     lineHeight: 18,
   },
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     ...Platform.select({
       ios: {
-        shadowColor: '#4A90A4',
+        shadowColor: '#1B4B3F',
         shadowOffset: { width: 0, height: 12 },
         shadowOpacity: 0.09,
         shadowRadius: 22,
@@ -370,12 +370,12 @@ const styles = StyleSheet.create({
   cardTabText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#8BA5B5',
+    color: '#93A199',
   },
   cardTabTextActive: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#1E3A4C',
+    color: '#17231E',
   },
   cardTabIndicator: {
     position: 'absolute',
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 12,
-    color: '#5A7A8A',
+    color: '#63736B',
     lineHeight: 18,
   },
   termsPrefix: {
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   termsLink: {
     fontSize: 12,
     lineHeight: 18,
-    color: '#35566A',
+    color: '#3C4A43',
     fontWeight: '600',
   },
   bottomGroup: {
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   loginHintText: {
     fontSize: 14,
-    color: '#5A7A8A',
+    color: '#63736B',
   },
   loginHintLink: {
     fontSize: 14,
@@ -462,6 +462,6 @@ const styles = StyleSheet.create({
   },
   bottomSecurityText: {
     fontSize: 11,
-    color: '#8BA5B5',
+    color: '#93A199',
   },
 });

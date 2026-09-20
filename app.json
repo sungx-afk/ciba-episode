@@ -11,7 +11,7 @@
     "splash": {
       "image": "./src/assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F8FBFC"
+      "backgroundColor": "#F5F4EF"
     },
     "ios": {
       "supportsTablet": false,
@@ -37,7 +37,7 @@
       "package": "com.yugusoft.CibaEnglish.episode",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
-        "backgroundColor": "#F8FBFC"
+        "backgroundColor": "#F5F4EF"
       }
     },
     "web": {

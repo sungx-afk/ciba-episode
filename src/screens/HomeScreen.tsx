@@ -434,7 +434,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     <Ionicons
                       name={isVip ? 'diamond' : 'diamond-outline'}
                       size={11}
-                      color={isVip ? '#FFFFFF' : Colors.gold}
+                      color={isVip ? Colors.textPrimary : Colors.gold}
                     />
                     <Text style={[styles.vipTagText, isVip && styles.vipTagTextActive]}>
                       {isVip ? 'VIP 会员' : '升级会员'}
@@ -1401,8 +1401,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.gold,
   },
+  // 会员标签：金底 + 深墨绿字，比金底白字更清晰，也更像一枚金属徽章
   vipTagTextActive: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     letterSpacing: 0.3,
   },
   userSub: {

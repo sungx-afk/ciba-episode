@@ -185,16 +185,16 @@ const FlyTag: React.FC<{ item: FlyItem }> = ({ item }) => {
             inputRange: [0, 0.55, 1],
             outputRange: [
               'rgba(255,255,255,1)',
-              'rgba(107,181,162,0.12)',
-              'rgba(107,181,162,0.12)',
+              'rgba(63,122,87,0.12)',
+              'rgba(63,122,87,0.12)',
             ],
           }),
           borderColor: p.interpolate({
             inputRange: [0, 0.55, 1],
             outputRange: [
-              'rgba(212,229,235,1)',
-              'rgba(107,181,162,0.35)',
-              'rgba(107,181,162,0.35)',
+              'rgba(221,219,208,1)',
+              'rgba(63,122,87,0.35)',
+              'rgba(63,122,87,0.35)',
             ],
           }),
           opacity: p.interpolate({ inputRange: [0, 0.9, 1], outputRange: [1, 1, 0] }),
@@ -212,7 +212,7 @@ const FlyTag: React.FC<{ item: FlyItem }> = ({ item }) => {
           fontSize: p.interpolate({ inputRange: [0, 1], outputRange: [19, 13] }),
           color: p.interpolate({
             inputRange: [0, 0.55, 1],
-            outputRange: ['rgb(30,58,76)', 'rgb(107,181,162)', 'rgb(107,181,162)'],
+            outputRange: ['rgb(23,35,30)', 'rgb(63,122,87)', 'rgb(63,122,87)'],
           }),
         }}
       >
