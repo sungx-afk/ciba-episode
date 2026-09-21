@@ -298,23 +298,48 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* 学习数据：四个关键指标，一眼看到坚持与产出 */}
+        {/* 学习数据：连续打卡与已掌握单词并列，两个数字同一层级 */}
         <View style={styles.card}>
           <SectionBadge icon="stats-chart-outline" label="学习数据" color={Colors.primary} />
-          <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <View style={[styles.statIcon, { backgroundColor: Colors.coral + '1A' }]}>
-                <Ionicons name="flame-outline" size={15} color={Colors.coral} />
+
+          <View style={styles.statRow}>
+            <View style={styles.statItem}>
+              <View style={styles.statItemTop}>
+                <Text style={styles.statNum}>{stats.streakDays}</Text>
+                <View
+                  style={[styles.statBadge, stats.streakDays > 0 && styles.statBadgeActive]}
+                >
+                  <Ionicons
+                    name="flame"
+                    size={16}
+                    color={stats.streakDays > 0 ? '#FFFFFF' : Colors.textMuted}
+                  />
+                </View>
               </View>
-              <Text style={styles.statNum}>{stats.streakDays}</Text>
-              <Text style={styles.statLbl}>连续打卡(天)</Text>
+              <Text style={styles.statLabel}>连续打卡（天）</Text>
+              <Text style={styles.statHint}>
+                {stats.streakDays > 0 ? '保持住，别让火苗熄了' : '今天先学一个词吧'}
+              </Text>
             </View>
-            <View style={styles.statBox}>
-              <View style={[styles.statIcon, { backgroundColor: Colors.success + '1A' }]}>
-                <Ionicons name="checkmark-done-outline" size={15} color={Colors.success} />
+
+            <View style={styles.statDivider} />
+
+            <View style={styles.statItem}>
+              <View style={styles.statItemTop}>
+                <Text style={styles.statNum}>{stats.masteredCount}</Text>
+                <View
+                  style={[
+                    styles.statBadge,
+                    { backgroundColor: Colors.success + '1A' },
+                  ]}
+                >
+                  <Ionicons name="checkmark-done-outline" size={16} color={Colors.success} />
+                </View>
               </View>
-              <Text style={styles.statNum}>{stats.masteredCount}</Text>
-              <Text style={styles.statLbl}>已掌握单词</Text>
+              <Text style={styles.statLabel}>已掌握单词</Text>
+              <Text style={styles.statHint}>
+                {stats.masteredCount > 0 ? '每一步都算数' : '记住第一个词试试'}
+              </Text>
             </View>
           </View>
         </View>
@@ -647,34 +672,58 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     marginBottom: 14,
   },
-  statsGrid: {
+  // ── 学习数据：连续打卡 / 已掌握单词，两个大数字并列 ──
+  statRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    alignItems: 'stretch',
   },
-  statBox: {
+  statItem: {
     flex: 1,
-    minWidth: '45%',
-    backgroundColor: Colors.surfaceSoft,
-    borderRadius: 14,
-    padding: 12,
-    gap: 6,
   },
-  statIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+  // 数字在左、图标徽章靠右，两者同高对齐
+  statItemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statNum: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: -0.5,
+  },
+  statBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statNum: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.textPrimary,
+  // 有打卡天数时才点亮火焰，0 天时保持灰色不抢眼
+  statBadgeActive: {
+    backgroundColor: Colors.coral,
+    shadowColor: Colors.coral,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  statLbl: {
+  statLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginTop: 8,
+  },
+  statHint: {
     fontSize: 11,
-    color: Colors.textTertiary,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.divider,
+    marginHorizontal: 16,
   },
   // 行内的「图标 + 文案」组合（口音/导出等行都会用到）
   rowLeading: {
