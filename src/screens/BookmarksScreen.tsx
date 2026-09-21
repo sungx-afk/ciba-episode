@@ -14,7 +14,6 @@ import {
   UIManager,
   ActivityIndicator,
   RefreshControl,
-  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '../storage/progressStore';
@@ -53,7 +52,7 @@ type TabKey = 'learning' | 'mastered' | 'all';
 interface TabMeta {
   key: TabKey;
   label: string;
-  /** 传给服务端的卡片状态过滤，不传表示该卡组下全部卡片 */
+  /** 传给服务端的卡片状态过滤，不传表示该词库下全部卡片 */
   types?: number[];
 }
 
@@ -366,7 +365,7 @@ export const BookmarksScreen: React.FC<BookmarksScreenProps> = ({ navigation }) 
   const [activeTab, setActiveTab] = useState<TabKey>('learning');
   /** 三个 tab 各自的分页数据 */
   const [tabs, setTabs] = useState<Record<TabKey, TabState>>(emptyTabs);
-  /** 生词本卡组 id：学习结果要按它上报 */
+  /** 生词本词库 id：学习结果要按它上报 */
   const [bookmarkPackId, setBookmarkPackId] = useState(0);
 
   const [initialLoading, setInitialLoading] = useState(true);
@@ -404,7 +403,7 @@ export const BookmarksScreen: React.FC<BookmarksScreenProps> = ({ navigation }) 
     try {
       const failures: any[] = [];
 
-      // 先确定生词本卡组 id，后面三个 tab 的请求与上报共用它
+      // 先确定生词本词库 id，后面三个 tab 的请求与上报共用它
       try {
         await fetchDefaultMoviePackId();
         setBookmarkPackId(getCachedBookmarkPackId());
@@ -583,32 +582,20 @@ export const BookmarksScreen: React.FC<BookmarksScreenProps> = ({ navigation }) 
     [navigation, tabs, activeTab]
   );
 
-  /** 打开电脑端插件站点（边看剧边添加生词） */
-  const handleOpenSite = useCallback(() => {
-    Linking.openURL('https://www.cibaen.com').catch(() => {
-      setDialog({
-        title: '打不开链接',
-        message: '请手动在浏览器访问 www.cibaen.com',
-        showCancel: false,
-      });
-    });
-  }, []);
-
-  /** 列表底部的提示卡：与首页同一张「边看美剧，边学生词」的插件说明 */
+  /** 列表底部的提示卡：与首页同一张「边看美剧，边学生词」的说明，只展示不做跳转 */
   const renderTipCard = () => (
-    <TouchableOpacity style={styles.tipCard} onPress={handleOpenSite} activeOpacity={0.9}>
+    <View style={styles.tipCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipTitleRow}>
           <Ionicons name="bulb" size={15} color={Colors.accent} />
           <Text style={styles.tipTitle}>边看美剧，边学生词</Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
       </View>
       <Text style={styles.tipText}>
         电脑访问 <Text style={styles.tipLink}>www.cibaen.com</Text>{' '}
         安装 Chrome 浏览器插件后，即可在爱奇艺、B 站观看带字幕的视频时，边看视频边添加英文生词。然后在手机上碎片时间记忆单词。
       </Text>
-    </TouchableOpacity>
+    </View>
   );
 
   /**
@@ -662,7 +649,7 @@ export const BookmarksScreen: React.FC<BookmarksScreenProps> = ({ navigation }) 
     }
 
     try {
-      // 生词本不属于当前卡组，必须显式带上它自己的卡组 id
+      // 生词本不属于当前词库，必须显式带上它自己的词库 id
       await recordReview(word.id, 'remembered', { packId: bookmarkPackId || undefined });
       playRememberedSound();
       applyRemembered([word]);

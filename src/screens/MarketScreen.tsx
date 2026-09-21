@@ -30,14 +30,14 @@ const HELP_LINES = [
 ];
 
 /**
- * 卡组市场: 从市场选择 pack_type = qian_wen_cat 的卡组并安装到我的卡组
+ * 词库市场: 从市场选择 pack_type = qian_wen_cat 的词库并安装到我的词库
  * 列表: GET  /anki/pack/in-store.json
  * 安装: POST /anki/pack/install.json (sourceId + name)
  */
 export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation }) => {
   const { isLoggedIn, setInstalledPack } = useProgress();
 
-  // 分类页检测到「我的卡组」为空时进入，顶部展示引导提示
+  // 分类页检测到「我的词库」为空时进入，顶部展示引导提示
   const firstSetup = route?.params?.firstSetup === true;
 
   const [packs, setPacks] = useState<RemotePack[]>([]);
@@ -47,7 +47,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // 当前选中的词库
   const [selectedPackId, setSelectedPackId] = useState<number | null>(null);
-  // 待确认添加的卡组 (不为 null 时显示确认框)
+  // 待确认添加的词库 (不为 null 时显示确认框)
   const [pendingPack, setPendingPack] = useState<RemotePack | null>(null);
   /** 统一弹窗状态：确认/提示一律走 ConfirmDialog，不再使用系统 Alert */
   const [dialog, setDialog] = useState<DialogPayload | null>(null);
@@ -67,7 +67,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
       }
       setInstalledIds(ids);
     } catch (e: any) {
-      setErrorMsg(e?.message || '加载卡组市场失败');
+      setErrorMsg(e?.message || '加载词库市场失败');
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
     loadMarket();
   }, [loadMarket]);
 
-  /** 点击「确定」: 已添加的卡组不能选，未添加的弹确认框后安装 */
+  /** 点击「确定」: 已添加的词库不能选，未添加的弹确认框后安装 */
   const handleConfirm = useCallback(() => {
     const pack = packs.find((p) => p.id === selectedPackId);
     if (!pack) return;
@@ -86,7 +86,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
     if (installedIds.has(pack.id)) {
       setDialog({
         title: '已添加',
-        message: `「${pack.name}」已在你的卡组中，市场不支持重复添加`,
+        message: `「${pack.name}」已在你的词库中，市场不支持重复添加`,
         showCancel: false,
       });
       return;
@@ -94,7 +94,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
     if (!isLoggedIn) {
       setDialog({
         title: '需要登录',
-        message: '请先登录后再添加卡组',
+        message: '请先登录后再添加词库',
         confirmText: '去登录',
         onConfirm: () => {
           setDialog(null);
@@ -122,19 +122,19 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
         return next;
       });
       setInstallingId(null);
-      // 通知分类页刷新我的卡组并切换到新安装的卡组
+      // 通知分类页刷新我的词库并切换到新安装的词库
       setInstalledPack(installed || ({ ...pack } as RemotePack));
       navigation.goBack();
       setDialog({
         title: '添加成功',
-        message: `「${pack.name}」已添加到我的卡组`,
+        message: `「${pack.name}」已添加到我的词库`,
         showCancel: false,
       });
     } catch (e: any) {
       setInstallingId(null);
       setDialog({
         title: '添加失败',
-        message: e?.message || '安装卡组失败，请稍后重试',
+        message: e?.message || '安装词库失败，请稍后重试',
         showCancel: false,
       });
     }
@@ -144,7 +144,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
     const installed = installedIds.has(item.id);
     const selected = !installed && selectedPackId === item.id;
     return (
-      // 已添加的卡组：禁用点击，不允许再次选中/重复添加
+      // 已添加的词库：禁用点击，不允许再次选中/重复添加
       <TouchableOpacity
         key={String(item.id)}
         style={[styles.packCard, selected && styles.packCardSelected, installed && styles.packCardInstalled]}
@@ -179,7 +179,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
   };
 
   const installing = installingId !== null;
-  // 已添加的卡组不可选：选中态本身就不会落到它们身上
+  // 已添加的词库不可选：选中态本身就不会落到它们身上
   const selectedPackInstalled =
     selectedPackId !== null && installedIds.has(selectedPackId);
   const canConfirm = selectedPackId !== null && !selectedPackInstalled && !installing;
@@ -187,7 +187,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
-        title="卡组市场"
+        title="词库市场"
         subtitle="选择需要的词库后点击确定"
         onBack={() => navigation.goBack()}
       />
@@ -202,7 +202,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
         {firstSetup ? (
           <View style={styles.tipBanner}>
             <Ionicons name="information-circle" size={18} color={Colors.primary} />
-            <Text style={styles.tipText}>你还没有卡组，请先添加一个分类背单词卡组后才能使用</Text>
+            <Text style={styles.tipText}>你还没有词库，请先添加一个分类背单词词库后才能使用</Text>
           </View>
         ) : null}
 
@@ -223,7 +223,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
         {loading && packs.length === 0 ? (
           <View style={styles.centerWrap}>
             <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.centerText}>正在加载卡组市场...</Text>
+            <Text style={styles.centerText}>正在加载词库市场...</Text>
           </View>
         ) : errorMsg ? (
           <View style={styles.centerWrap}>
@@ -236,7 +236,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
         ) : packs.length === 0 ? (
           <View style={styles.centerWrap}>
             <Ionicons name="albums-outline" size={44} color={Colors.border} />
-            <Text style={styles.centerText}>暂无可添加的卡组</Text>
+            <Text style={styles.centerText}>暂无可添加的词库</Text>
           </View>
         ) : (
           <View style={styles.grid}>{packs.map(renderPackCard)}</View>
@@ -264,8 +264,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ route, navigation })
 
       <ConfirmDialog
         visible={pendingPack !== null}
-        title="添加卡组"
-        message={`确定把「${pendingPack?.name || ''}」添加到我的卡组？`}
+        title="添加词库"
+        message={`确定把「${pendingPack?.name || ''}」添加到我的词库？`}
         onConfirm={confirmInstall}
         onCancel={() => setPendingPack(null)}
         onClose={() => setPendingPack(null)}

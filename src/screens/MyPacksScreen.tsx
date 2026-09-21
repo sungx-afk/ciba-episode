@@ -25,22 +25,22 @@ interface MyPacksScreenProps {
 }
 
 /**
- * 我的卡组列表页：
- * 首页「我的卡组」总览卡片的下一级，列出全部顶层卡组（parentId = 0），
- * 点某个卡组进入它的分类卡组列表（SubPacks）开始学习。
+ * 我的词库列表页：
+ * 首页「我的词库」总览卡片的下一级，列出全部顶层词库（parentId = 0），
+ * 点某个词库进入它的分类词库列表（SubPacks）开始学习。
  */
 export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
   const { isLoggedIn, setCurrentTopPack, currentTopPack, resetCurrentTopPack } = useProgress();
 
   const [packs, setPacks] = useState<RemotePack[]>([]);
-  /** 正在删除的卡组 id：按钮上转圈并禁用其它删除，避免连点 */
+  /** 正在删除的词库 id：按钮上转圈并禁用其它删除，避免连点 */
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   /** 统一弹窗状态：确认/提示一律走 ConfirmDialog */
   const [dialog, setDialog] = useState<DialogPayload | null>(null);
-  /** 卡片右上角「更多」菜单指向的卡组 */
+  /** 卡片右上角「更多」菜单指向的词库 */
   const [menuPack, setMenuPack] = useState<RemotePack | null>(null);
   /** 首次聚焦由首次加载负责，避免重复请求 */
   const focusedOnceRef = useRef(false);
@@ -52,14 +52,14 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
       const { packs: list } = await packLibrary.fetchMyPacks({ start: 0, limit: 50 });
       setPacks(list);
     } catch (e: any) {
-      setErrorMsg(e?.message || '加载我的卡组失败');
+      setErrorMsg(e?.message || '加载我的词库失败');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  // 每次进入本页都刷新：从卡组市场添加卡组、或在下级页面学完后返回，数字都能同步
+  // 每次进入本页都刷新：从词库市场添加词库、或在下级页面学完后返回，数字都能同步
   useFocusEffect(
     useCallback(() => {
       if (!focusedOnceRef.current) {
@@ -71,10 +71,10 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
     }, [loadPacks])
   );
 
-  /** 全部卡组的汇总统计：卡组数 / 总词数 / 已记住词数 */
+  /** 全部词库的汇总统计：词库数 / 总词数 / 已记住词数 */
   const summary = useMemo(() => {
     const totalWords = packs.reduce((sum, p) => sum + (Number(p.card_count) || 0), 0);
-    // 服务端缓存偶发「已记住 > 总数」，这里按卡组逐个夹取
+    // 服务端缓存偶发「已记住 > 总数」，这里按词库逐个夹取
     const remembered = packs.reduce((sum, p) => {
       const total = Number(p.card_count) || 0;
       return sum + Math.max(0, Math.min(total, Number(p.remembered_card_count) || 0));
@@ -87,7 +87,7 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
     };
   }, [packs]);
 
-  /** 进入某个卡组的分类卡组列表；先把它设为当前词库，学习页要用它做词库名 */
+  /** 进入某个词库的分类词库列表；先把它设为当前词库，学习页要用它做词库名 */
   const handleOpenPack = (pack: RemotePack) => {
     setCurrentTopPack(pack);
     navigation.navigate('SubPacks', {
@@ -101,7 +101,7 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
     if (!isLoggedIn) {
       setDialog({
         title: '需要登录',
-        message: '请先登录后再添加卡组',
+        message: '请先登录后再添加词库',
         confirmText: '去登录',
         onConfirm: () => {
           setDialog(null);
@@ -113,23 +113,23 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
     navigation.navigate('Market');
   };
 
-  /** 删除卡组：与「切换词库」里同一个接口，删完顺手把首页焦点让出来 */
+  /** 删除词库：与「切换词库」里同一个接口，删完顺手把首页焦点让出来 */
   const confirmDelete = async (pack: RemotePack) => {
     setDeletingId(pack.id);
     try {
       await packLibrary.deletePack(pack.id);
       const rest = packs.filter((p) => Number(p.id) !== Number(pack.id));
       setPacks(rest);
-      // 删掉的正好是首页在用的卡组：清空焦点，避免首页继续拿已删 id 请求
+      // 删掉的正好是首页在用的词库：清空焦点，避免首页继续拿已删 id 请求
       if (Number(currentTopPack?.id) === Number(pack.id)) {
         resetCurrentTopPack();
       }
-      showToast('已删除卡组');
+      showToast('已删除词库');
       if (!rest.length) {
         setDialog({
-          title: '卡组已清空',
-          message: '当前没有卡组了，去卡组市场添加新的分类背单词卡组吧',
-          confirmText: '去卡组市场',
+          title: '词库已清空',
+          message: '当前没有词库了，去词库市场添加新的分类背单词词库吧',
+          confirmText: '去词库市场',
           cancelText: '稍后再说',
           onConfirm: () => {
             setDialog(null);
@@ -153,7 +153,7 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
     if (!isLoggedIn) {
       setDialog({
         title: '需要登录',
-        message: '请先登录后再管理我的卡组',
+        message: '请先登录后再管理我的词库',
         confirmText: '去登录',
         onConfirm: () => {
           setDialog(null);
@@ -163,8 +163,8 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
       return;
     }
     setDialog({
-      title: '删除卡组',
-      message: `确定删除「${pack.name}」吗？该卡组及其下分类卡组、学习记录会一并删除，且不可恢复。`,
+      title: '删除词库',
+      message: `确定删除「${pack.name}」吗？该词库及其下分类词库、学习记录会一并删除，且不可恢复。`,
       confirmText: '删除',
       cancelText: '取消',
       onConfirm: () => {
@@ -216,7 +216,7 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
 
         {/*
           右上角的「更多」：独立浮在卡片上（不是主体的子节点），
-          所以它只会打开菜单，不会把点击继续传给主体的「查看分类卡组」。
+          所以它只会打开菜单，不会把点击继续传给主体的「查看分类词库」。
           命中区放大到 44x44，但图标本身贴在右上角，视觉上不压住中间的小箭头。
         */}
         <TouchableOpacity
@@ -243,11 +243,11 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
           <Ionicons name="albums-outline" size={16} color="#FFFFFF" />
         </View>
         <View style={styles.summaryTitleWrap}>
-          <Text style={styles.summaryTitle}>我的卡组</Text>
+          <Text style={styles.summaryTitle}>我的词库</Text>
           <Text style={styles.summarySubtitle} numberOfLines={1}>
             {summary.packCount > 0
-              ? `共 ${summary.packCount} 个卡组 · 已记住 ${summary.remembered}/${summary.totalWords} 词`
-              : '还没有卡组'}
+              ? `共 ${summary.packCount} 个词库 · 已记住 ${summary.remembered}/${summary.totalWords} 词`
+              : '还没有词库'}
           </Text>
         </View>
         <View style={styles.summaryPercentBadge}>
@@ -259,14 +259,14 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
 
       <ProgressBar progress={summary.progress} height={8} color={Colors.success} />
 
-      <Text style={styles.summaryHint}>点卡组查看分类并开始学习</Text>
+      <Text style={styles.summaryHint}>点词库查看分类并开始学习</Text>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
-        title="我的卡组"
+        title="我的词库"
         onBack={() => navigation.goBack()}
         rightAction={{ icon: 'add', onPress: handleOpenMarket, filled: true, label: '添加' }}
       />
@@ -274,7 +274,7 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
       {loading && packs.length === 0 ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>正在加载我的卡组...</Text>
+          <Text style={styles.loadingText}>正在加载我的词库...</Text>
         </View>
       ) : (
         <FlatList
@@ -310,16 +310,16 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
               ) : (
                 <>
                   <Ionicons name="albums-outline" size={48} color={Colors.border} />
-                  <Text style={styles.emptyText}>你还没有卡组</Text>
+                  <Text style={styles.emptyText}>你还没有词库</Text>
                   <Text style={styles.emptyHint}>
-                    从卡组市场添加分类背单词卡组后，就能在这里挑卡组学习
+                    从词库市场添加分类背单词词库后，就能在这里挑词库学习
                   </Text>
                   <TouchableOpacity
                     style={styles.retryBtn}
                     onPress={handleOpenMarket}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.retryText}>去卡组市场</Text>
+                    <Text style={styles.retryText}>去词库市场</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -343,7 +343,7 @@ export const MyPacksScreen: React.FC<MyPacksScreenProps> = ({ navigation }) => {
       {/* 卡片「更多」菜单：删除这种不可逆操作，先出菜单再二次确认 */}
       <ActionSheet
         visible={menuPack !== null}
-        items={[{ key: 'delete', name: '删除卡组', danger: true }]}
+        items={[{ key: 'delete', name: '删除词库', danger: true }]}
         onSelect={(key) => {
           const target = menuPack;
           setMenuPack(null);
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.textPrimary,
-    // 给右上角的「更多」留位，长卡组名不会被压在按钮下面
+    // 给右上角的「更多」留位，长词库名不会被压在按钮下面
     marginRight: 28,
   },
   packSummary: {

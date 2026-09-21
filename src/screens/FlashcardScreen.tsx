@@ -30,7 +30,7 @@ const TODAY_WORD_LIMIT = 50;
 /** learn-by-menu 的卡片状态过滤：0 未学 / 1、2、3 学习中（已记住 4 不再出现） */
 const TODAY_WORD_TYPES = [0, 1, 2, 3];
 
-/** 同一父卡组下的兄弟卡组（用于「继续学习下一个卡组」） */
+/** 同一父词库下的兄弟词库（用于「继续学习下一个词库」） */
 interface SiblingPack {
   id: number;
   name: string;
@@ -74,23 +74,23 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
   // 会员状态与注册时间都来自用户信息
   const { user, refreshUserInfo } = useAuth();
 
-  /** 顶层卡组名: 继续学习下一个卡组时，作为新单词的 cat 标记 */
+  /** 顶层词库名: 继续学习下一个词库时，作为新单词的 cat 标记 */
   const topPackName = packCat || currentTopPack?.name || '';
 
-  /** 路由直接带过来的兄弟卡组列表（首页「开始背词」） */
+  /** 路由直接带过来的兄弟词库列表（首页「开始背词」） */
   const paramQueue: SiblingPack[] = Array.isArray(packQueue) ? packQueue : [];
-  /** 兄弟卡组列表: 用于「继续学习下一个卡组」 */
+  /** 兄弟词库列表: 用于「继续学习下一个词库」 */
   const [siblingPacks, setSiblingPacks] = useState<SiblingPack[]>(paramQueue);
-  /** 当前学习的是第几个兄弟卡组 */
+  /** 当前学习的是第几个兄弟词库 */
   const [packCursor, setPackCursor] = useState<number>(
     typeof packIndex === 'number' && paramQueue.length ? packIndex : -1
   );
-  /** 当前卡组名（继续学习下一个卡组时会更新） */
+  /** 当前词库名（继续学习下一个词库时会更新） */
   const [sessionTitle, setSessionTitle] = useState<string | undefined>(title);
   /**
    * 直接使用的单词队列（最高优先级）:
    * 1. 首页「复习待办」等入口通过 queueWords 传入
-   * 2. 「继续学习下一个卡组」时由下一个卡组拉取
+   * 2. 「继续学习下一个词库」时由下一个词库拉取
    */
   const [queueOverride, setQueueOverride] = useState<Word[] | null>(
     Array.isArray(queueWords) && queueWords.length ? queueWords : null
@@ -98,8 +98,8 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
   const [switchingPack, setSwitchingPack] = useState(false);
 
   /**
-   * 路由没带兄弟卡组（如从「单词列表」进入）时，按 packId 反查父卡组下的兄弟列表，
-   * 以便学完后也能继续学习下一个卡组。失败则静默降级为不显示该按钮。
+   * 路由没带兄弟词库（如从「单词列表」进入）时，按 packId 反查父词库下的兄弟列表，
+   * 以便学完后也能继续学习下一个词库。失败则静默降级为不显示该按钮。
    */
   useEffect(() => {
     if (paramQueue.length || !packId) return;
@@ -117,7 +117,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
         setSiblingPacks(packs.map((p) => ({ id: p.id, name: p.name })));
         setPackCursor(index);
       } catch {
-        // 拿不到兄弟卡组就不提供「继续学习下一个卡组」
+        // 拿不到兄弟词库就不提供「继续学习下一个词库」
       }
     })();
     return () => {
@@ -127,10 +127,10 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
 
   // 构建当前复习/学习单词队列
   const rawQueue: Word[] = useMemo(() => {
-    // 在成果页「继续学习下一个卡组」时，队列已由下一个卡组直接给出
+    // 在成果页「继续学习下一个词库」时，队列已由下一个词库直接给出
     if (queueOverride && queueOverride.length) return queueOverride;
 
-    // 今日学习单词 / 子卡组单词列表 (learn-by-menu 拉取的卡片)
+    // 今日学习单词 / 子词库单词列表 (learn-by-menu 拉取的卡片)
     if (wordIds && wordIds.length) {
       const pool = new Map<number, Word>();
       for (const w of todayWords) pool.set(w.id, w);
@@ -255,7 +255,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
     [currentWord]
   );
 
-  /** 词包级「分类词汇辨析」：取自卡组详情 summary */
+  /** 词包级「分类词汇辨析」：取自词库详情 summary */
   const [packSummary, setPackSummary] = useState('');
   useEffect(() => {
     const targetId = Number(packId || currentWord?.packageId || 0);
@@ -263,7 +263,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
       setPackSummary('');
       return;
     }
-    // 已加载过的顶层卡组就不再单独请求
+    // 已加载过的顶层词库就不再单独请求
     if (Number((currentTopPack as any)?.id) === targetId) {
       setPackSummary(String((currentTopPack as any)?.summary || ''));
       return;
@@ -399,17 +399,17 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
     }
   };
 
-  /** 是否由首页带着兄弟卡组列表进入（只有这种场景才提供「继续学习下一个卡组」） */
+  /** 是否由首页带着兄弟词库列表进入（只有这种场景才提供「继续学习下一个词库」） */
   const hasPackContext = siblingPacks.length > 0 && packCursor >= 0;
   const nextPack: SiblingPack | undefined = hasPackContext
     ? siblingPacks[packCursor + 1]
     : undefined;
-  /** 列表还有未加载的兄弟卡组（分页），此时最后一个不等于真的没有了 */
+  /** 列表还有未加载的兄弟词库（分页），此时最后一个不等于真的没有了 */
   const hasMorePacks = hasPackContext && !!hasMorePacksParam;
 
   /**
-   * 继续学习下一个卡组:
-   * 依次向后查找第一个「今日有单词」的子卡组，直接切换队列继续学习。
+   * 继续学习下一个词库:
+   * 依次向后查找第一个「今日有单词」的子词库，直接切换队列继续学习。
    */
   const handleContinueNextPack = async () => {
     if (switchingPack || !hasPackContext) return;
@@ -418,7 +418,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
       let cursor = packCursor + 1;
       let target: { pack: SiblingPack; words: Word[] } | null = null;
 
-      // 单词列表（子卡组）来源取整组单词；其它场景取今日待学卡片
+      // 单词列表（子词库）来源取整组单词；其它场景取今日待学卡片
       const fromPackList = listSource === 'pack';
 
       while (cursor < siblingPacks.length) {
@@ -432,7 +432,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
               cat: topPackName,
               sub: pack.name || '',
             });
-        // 整组单词里可能全是已记住的，这种卡组直接跳过
+        // 整组单词里可能全是已记住的，这种词库直接跳过
         const learnable = fromPackList
           ? list.some((w) => w.type !== 4 && state.progressMap[w.id]?.status !== 'mastered')
           : list.length > 0;
@@ -449,8 +449,8 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
           title: '太棒了',
           message:
             listSource === 'pack'
-              ? '后面的卡组都没有待学习的单词'
-              : '后面的卡组今日都没有待学习的单词',
+              ? '后面的词库都没有待学习的单词'
+              : '后面的词库今日都没有待学习的单词',
           showCancel: false,
         });
         return;
@@ -467,7 +467,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
     } catch (e: any) {
       setDialog({
         title: '加载失败',
-        message: e?.message || '获取下一个卡组失败',
+        message: e?.message || '获取下一个词库失败',
         showCancel: false,
       });
     } finally {
@@ -526,7 +526,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
             </View>
           </View>
 
-          {/* 有下一个子卡组: 直接继续学习；已到末尾: 只给提示 */}
+          {/* 有下一个子词库: 直接继续学习；已到末尾: 只给提示 */}
           {nextPack ? (
             <TouchableOpacity
               style={[styles.continueBtn, switchingPack && styles.continueBtnDisabled]}
@@ -540,7 +540,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
                 <Ionicons name="arrow-forward-circle" size={22} color="#FFFFFF" />
               )}
               <View style={styles.continueBtnTextWrap}>
-                <Text style={styles.continueBtnText}>继续学习下一个卡组</Text>
+                <Text style={styles.continueBtnText}>继续学习下一个词库</Text>
                 <Text style={styles.continueBtnSub} numberOfLines={1} ellipsizeMode="tail">
                   {nextPack.name}
                 </Text>
@@ -555,8 +555,8 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
               />
               <Text style={styles.packEndHintText}>
                 {hasMorePacks
-                  ? '本页卡组已学完，返回列表可继续学习更多卡组'
-                  : '已经是最后一个卡组啦，全部完成！'}
+                  ? '本页词库已学完，返回列表可继续学习更多词库'
+                  : '已经是最后一个词库啦，全部完成！'}
               </Text>
             </View>
           ) : null}
@@ -665,7 +665,7 @@ export const FlashcardScreen: React.FC<FlashcardScreenProps> = ({ route, navigat
           </View>
         ) : null}
 
-        {/* 分类词汇辨析（卡组级内容）：样式对齐 web 背诵页 Review.vue 的 pack-summary-wrapper */}
+        {/* 分类词汇辨析（词库级内容）：样式对齐 web 背诵页 Review.vue 的 pack-summary-wrapper */}
         {packSummary ? (
           <View style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>分类词汇辨析</Text>
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
   },
-  // 继续学习下一个卡组
+  // 继续学习下一个词库
   continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',

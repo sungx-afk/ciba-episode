@@ -12,7 +12,6 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ConfirmDialog, DialogPayload } from '../components/ConfirmDialog';
@@ -78,12 +77,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     : '未登录';
 
   /**
-   * 我的卡组 (/anki/pack.json, parentId = 0)：
-   * 首页只用它算「全部卡组」的总览统计，列表与学习入口在 MyPacks / SubPacks 页。
+   * 我的词库 (/anki/pack.json, parentId = 0)：
+   * 首页只用它算「全部词库」的总览统计，列表与学习入口在 MyPacks / SubPacks 页。
    */
   const [topPacks, setTopPacks] = useState<RemotePack[]>([]);
   const [loadingPacks, setLoadingPacks] = useState(true);
-  // 当前词库仍由全局 store 持有：下级页面（分类卡组 / 背词 / 我的）要用它做词库名
+  // 当前词库仍由全局 store 持有：下级页面（分类词库 / 背词 / 我的）要用它做词库名
   const selectedTop = currentTopPack;
   const setSelectedTop = setCurrentTopPack;
 
@@ -92,23 +91,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [notebook, setNotebook] = useState<NotebookStats | null>(null);
   const [loadingNotebook, setLoadingNotebook] = useState(false);
 
-  // 已提示过前往卡组市场（避免重复跳转）
+  // 已提示过前往词库市场（避免重复跳转）
   const marketPromptedRef = useRef(false);
-  // 刚安装的卡组 id（服务端在后台线程复制子卡组，需要轮询等待）
+  // 刚安装的词库 id（服务端在后台线程复制子词库，需要轮询等待）
   const justInstalledRef = useRef<number | null>(null);
-  // 已按该账号拉取过卡组（登录/切换账号时重新拉取）
+  // 已按该账号拉取过词库（登录/切换账号时重新拉取）
   const loadedUserIdRef = useRef<string | null>(null);
-  // 上次记住的卡组名（列表加载完成前先占位显示）
+  // 上次记住的词库名（列表加载完成前先占位显示）
   const [lastPackName, setLastPackName] = useState<string | null>(null);
-  // 当前卡组的镜像，供异步回调里读取最新值
+  // 当前词库的镜像，供异步回调里读取最新值
   const currentTopPackRef = useRef<RemotePack | null>(null);
   useEffect(() => {
     currentTopPackRef.current = currentTopPack;
   }, [currentTopPack]);
 
   /**
-   * 顶层卡组为空时（例如在「切换词库」里把当前卡组删掉了），
-   * 回退到当前在线词库，避免首页没有焦点导致子卡组、今日任务与今日单词都是空的。
+   * 顶层词库为空时（例如在「切换词库」里把当前词库删掉了），
+   * 回退到当前在线词库，避免首页没有焦点导致子词库、今日任务与今日单词都是空的。
    */
   useEffect(() => {
     if (currentTopPack || !currentPack) return;
@@ -118,7 +117,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // 生词本统计请求代次，避免旧结果覆盖新结果
   const notebookReqRef = useRef(0);
 
-  /** 顶部卡组: 我的卡组 */
+  /** 顶部词库: 我的词库 */
   const loadTopPacks = useCallback(async () => {
     setLoadingPacks(true);
     setErrorMsg(null);
@@ -126,9 +125,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       const { packs } = await packLibrary.fetchMyPacks({ start: 0, limit: 50 });
       setTopPacks(packs);
 
-      // 我的卡组为空: 引导前往卡组市场添加卡组
+      // 我的词库为空: 引导前往词库市场添加词库
       if (!packs.length) {
-        // 仅清内存，避免服务端偶发返回空列表时误删「上次记住的卡组」
+        // 仅清内存，避免服务端偶发返回空列表时误删「上次记住的词库」
         resetCurrentTopPack();
         if (!marketPromptedRef.current && isLoggedIn) {
           marketPromptedRef.current = true;
@@ -138,14 +137,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
       marketPromptedRef.current = false;
 
-      // 读取上次记住的卡组 id
+      // 读取上次记住的词库 id
       const rememberedInfo = await readRememberedTopPack();
       const rememberedId = rememberedInfo?.id ?? null;
 
       // ① 本次已选过且仍存在 -> 保持
       const prev = currentTopPackRef.current;
       if (prev && packs.some((p) => Number(p.id) === Number(prev.id))) return;
-      // ② 上次记住的卡组；不存在则 ③ currentPack；再退回 ④ 第一个
+      // ② 上次记住的词库；不存在则 ③ currentPack；再退回 ④ 第一个
       // 注意: 服务端 id 可能返回字符串，统一转成数字再比较
       const remembered =
         rememberedId !== null ? packs.find((p) => Number(p.id) === rememberedId) : undefined;
@@ -154,7 +153,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         : undefined;
       setSelectedTop(remembered || saved || packs[0] || null);
     } catch (e: any) {
-      setErrorMsg(e?.message || '加载我的卡组失败');
+      setErrorMsg(e?.message || '加载我的词库失败');
     } finally {
       setLoadingPacks(false);
     }
@@ -167,7 +166,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setCurrentTopPack,
   ]);
 
-  // 启动时先读取上次记住的卡组名，用于占位显示
+  // 启动时先读取上次记住的词库名，用于占位显示
   useEffect(() => {
     (async () => {
       const remembered = await readRememberedTopPack();
@@ -176,7 +175,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   }, [readRememberedTopPack]);
 
   /**
-   * 清空上一个账号残留的界面数据：卡组列表、今日学习、复习待办等，
+   * 清空上一个账号残留的界面数据：词库列表、今日学习、复习待办等，
    * 避免切换账号的瞬间把 A 账号的数据显示在 B 账号上。
    */
   const resetAccountScopedUi = () => {
@@ -188,14 +187,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     marketPromptedRef.current = false;
   };
 
-  // 登录成功后（或切换账号后）用最新登录信息重新拉取我的卡组
+  // 登录成功后（或切换账号后）用最新登录信息重新拉取我的词库
   useEffect(() => {
-    // 登录态仍在异步读取中，先不要做任何清空，避免误删「上次记住的卡组」
+    // 登录态仍在异步读取中，先不要做任何清空，避免误删「上次记住的词库」
     if (authLoading) return;
 
     if (!isLoggedIn) {
       loadedUserIdRef.current = null; // 退出登录后允许再次登录时重新拉取
-      // 清空上一账号残留的卡组数据（仅内存，保留本地记住的卡组）
+      // 清空上一账号残留的词库数据（仅内存，保留本地记住的词库）
       setTopPacks([]);
       resetCurrentTopPack();
       setLoadingPacks(false); // 未登录时不发请求，需手动结束 loading
@@ -215,7 +214,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     await loadTopPacks();
   }, [loadTopPacks]);
 
-  /** 打开卡组市场 */
+  /** 打开词库市场 */
   const handleOpenMarket = () => {
     if (!isLoggedIn) {
       promptLogin();
@@ -224,10 +223,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     navigation.navigate('Market');
   };
 
-  /** 市场安装完成: 刷新我的卡组并切换到新安装的卡组 */
+  /** 市场安装完成: 刷新我的词库并切换到新安装的词库 */
   const handleMarketInstalled = useCallback(async () => {
     if (!installedPack) return;
-    // 标记为新安装，后续会轮询等待其子卡组复制完成
+    // 标记为新安装，后续会轮询等待其子词库复制完成
     justInstalledRef.current = installedPack.id;
     await loadTopPacks();
     setSelectedTop(installedPack);
@@ -250,7 +249,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const promptLogin = () => {
     setDialog({
       title: '需要登录',
-      message: '请先登录后再使用在线卡组',
+      message: '请先登录后再使用在线词库',
       confirmText: '去登录',
       onConfirm: () => {
         setDialog(null);
@@ -275,13 +274,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       return;
     }
     navigation.navigate('Profile');
-  };
-
-  /** 打开电脑端插件站点（边看剧边添加生词） */
-  const handleOpenSite = () => {
-    Linking.openURL('https://www.cibaen.com').catch(() => {
-      showNotice('打不开链接', '请手动在浏览器访问 www.cibaen.com');
-    });
   };
 
   /**
@@ -317,7 +309,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   }, [authLoading, isLoggedIn, (user as any)?.id, loadNotebook]);
 
   /**
-   * 从学习页返回时静默刷新：我的卡组总览统计 + 生词本统计，
+   * 从学习页返回时静默刷新：我的词库总览统计 + 生词本统计，
    * 保证卡片上的数字是学完之后的最新数据（首次聚焦跳过，避免重复请求）。
    */
   const focusedOnceRef = useRef(false);
@@ -334,13 +326,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   );
 
   /**
-   * 我的卡组总览：全部顶层卡组（parentId = 0）的汇总统计。
-   * 首页不再展示某个焦点卡组，也不再列子卡组，只回答
-   * 「我有几个卡组、一共多少词、记住了多少」。
+   * 我的词库总览：全部顶层词库（parentId = 0）的汇总统计。
+   * 首页不再展示某个焦点词库，也不再列子词库，只回答
+   * 「我有几个词库、一共多少词、记住了多少」。
    */
   const allPacksStats = useMemo(() => {
     const totalWords = topPacks.reduce((sum, p) => sum + (Number(p.card_count) || 0), 0);
-    // 服务端缓存偶发「已记住 > 总数」，按卡组逐个夹取
+    // 服务端缓存偶发「已记住 > 总数」，按词库逐个夹取
     const remembered = topPacks.reduce((sum, p) => {
       const total = Number(p.card_count) || 0;
       return sum + Math.max(0, Math.min(total, Number(p.remembered_card_count) || 0));
@@ -354,7 +346,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     };
   }, [topPacks]);
 
-  /** 打开「我的卡组」列表页：在里面挑卡组 → 分类卡组 → 开始学习 */
+  /** 打开「我的词库」列表页：在里面挑词库 → 分类词库 → 开始学习 */
   const handleOpenMyPacks = () => {
     if (!isLoggedIn) {
       promptLogin();
@@ -443,12 +435,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
 
           <View style={styles.heroActions}>
-            {/* 卡组市场：挑新的分类背单词卡组 */}
+            {/* 词库市场：挑新的分类背单词词库 */}
             <TouchableOpacity
               style={styles.heroIconBtn}
               onPress={handleOpenMarket}
               activeOpacity={0.8}
-              accessibilityLabel="卡组市场"
+              accessibilityLabel="词库市场"
             >
               <Ionicons name="compass-outline" size={18} color={Colors.primaryDark} />
             </TouchableOpacity>
@@ -477,21 +469,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     </View>
   );
 
-  /** 提示卡：电脑端 Chrome 插件用法（边看剧边攒生词） */
+  /** 提示卡：电脑端 Chrome 插件用法（边看美剧边攒生词），只作说明展示，不做跳转 */
   const renderTipCard = () => (
-    <TouchableOpacity style={styles.tipCard} onPress={handleOpenSite} activeOpacity={0.9}>
+    <View style={styles.tipCard}>
       <View style={styles.tipHeader}>
         <View style={styles.tipTitleRow}>
           <Ionicons name="bulb" size={15} color={Colors.accent} />
           <Text style={styles.tipTitle}>边看美剧，边学生词</Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
       </View>
       <Text style={styles.tipText}>
         电脑访问 <Text style={styles.tipLink}>www.cibaen.com</Text>{' '}
-        安装 Chrome 浏览器插件后，即可在爱奇艺、B 站观看带字幕的视频时，边看视频边添加英文生词。然后在手机上碎片时间记忆单词。
+        安装浏览器插件后，即可在爱奇艺、B 站观看带字幕的视频时，边看视频边添加英文生词。然后在手机上碎片时间记忆单词。
       </Text>
-    </TouchableOpacity>
+    </View>
   );
 
   /** 页脚：只留一句短引，不再放「开始学习」按钮（入口交给上面两张卡片） */
@@ -616,8 +607,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   /**
-   * 我的卡组卡片：全部顶层卡组的汇总统计（不再列子卡组、也不再有焦点卡组）。
-   * 卡片整体可点，进「我的卡组」列表页 → 挑卡组 → 分类卡组 → 学习。
+   * 我的词库卡片：全部顶层词库的汇总统计（不再列子词库、也不再有焦点词库）。
+   * 卡片整体可点，进「我的词库」列表页 → 挑词库 → 分类词库 → 学习。
    */
   const renderPacksCard = () => (
     <TouchableOpacity
@@ -625,21 +616,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       onPress={isLoggedIn ? handleOpenMyPacks : undefined}
       activeOpacity={isLoggedIn ? 0.9 : 1}
     >
-      {/* 第一行: 标题 + 全部卡组的完成度 */}
+      {/* 第一行: 标题 + 全部词库的完成度 */}
       <View style={styles.cardHeader}>
         <View style={styles.cardIcon}>
           <Ionicons name="albums" size={17} color="#FFFFFF" />
         </View>
         <View style={styles.cardTitleWrap}>
           <Text style={styles.cardTitle} numberOfLines={1}>
-            我的卡组
+            我的词库
           </Text>
           <Text style={styles.cardSubtitle} numberOfLines={1}>
             {!isLoggedIn
-              ? '登录后查看我的卡组'
+              ? '登录后查看我的词库'
               : allPacksStats.packCount > 0
-              ? `共 ${allPacksStats.packCount} 个卡组 · 已记住 ${allPacksStats.remembered}/${allPacksStats.totalWords} 词`
-              : '还没有卡组'}
+              ? `共 ${allPacksStats.packCount} 个词库 · 已记住 ${allPacksStats.remembered}/${allPacksStats.totalWords} 词`
+              : '还没有词库'}
           </Text>
         </View>
         <View style={styles.percentBadge}>
@@ -650,7 +641,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         ) : null}
       </View>
 
-      {/* 全部卡组的已记住 / 未记住 单词数 */}
+      {/* 全部词库的已记住 / 未记住 单词数 */}
       <View style={styles.packsProgressTrack}>
         <ProgressBar progress={allPacksStats.progress} height={6} color={Colors.primary} />
       </View>
@@ -667,7 +658,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       {authLoading || loadingPacks ? (
         <View style={styles.centerPadding}>
           <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={styles.loadingText}>正在加载卡组...</Text>
+          <Text style={styles.loadingText}>正在加载词库...</Text>
         </View>
       ) : errorMsg ? (
         <View style={styles.packsEmptyWrap}>
@@ -679,23 +670,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       ) : !isLoggedIn ? (
         <View style={styles.unloginHintRow}>
           <Ionicons name="lock-closed-outline" size={13} color={Colors.textMuted} />
-          <Text style={styles.unloginHintText}>登录后去卡组市场添加分类背单词卡组</Text>
+          <Text style={styles.unloginHintText}>登录后去词库市场添加分类背单词词库</Text>
         </View>
       ) : topPacks.length === 0 ? (
         <View style={styles.packsEmptyWrap}>
           <Ionicons name="albums-outline" size={34} color={Colors.border} />
-          <Text style={styles.emptyText}>还没有卡组，去卡组市场添加分类背单词卡组</Text>
+          <Text style={styles.emptyText}>还没有词库，去词库市场添加分类背单词词库</Text>
           <TouchableOpacity
             style={styles.retryBtn}
             onPress={() => navigation.navigate('Market', { firstSetup: true })}
             activeOpacity={0.85}
           >
-            <Text style={styles.retryText}>去卡组市场</Text>
+            <Text style={styles.retryText}>添加词库</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.softCta}>
-          <Text style={styles.softCtaText}>查看全部卡组，挑一个开始学习</Text>
+          <Text style={styles.softCtaText}>查看全部词库，挑一个开始学习</Text>
           <Ionicons name="chevron-forward" size={13} color={Colors.textMuted} />
         </View>
       )}
@@ -726,7 +717,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {/* ① 生词本：今日目标与学习统计 */}
           {renderDashboardCard()}
 
-          {/* ② 我的卡组：全部卡组总览，点进去挑卡组学习 */}
+          {/* ② 我的词库：全部词库总览，点进去挑词库学习 */}
           {renderPacksCard()}
 
           {/* ③ 电脑端插件说明 */}
@@ -912,7 +903,7 @@ const styles = StyleSheet.create({
     color: Colors.accent,
   },
 
-  // ── 通用卡片（生词本 / 我的卡组同款） ──
+  // ── 通用卡片（生词本 / 我的词库同款） ──
   dashboardCard: {
     backgroundColor: Colors.card,
     borderRadius: 20,
@@ -1036,7 +1027,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primary,
   },
-  // 我的卡组：无底色，只有一行苍绿小字，比生词本再弱一档
+  // 我的词库：无底色，只有一行苍绿小字，比生词本再弱一档
   softCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1128,7 +1119,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // ── 我的卡组：进度条与两端数字 ──
+  // ── 我的词库：进度条与两端数字 ──
   packsProgressTrack: {
     marginTop: 16,
   },

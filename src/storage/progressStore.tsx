@@ -193,9 +193,9 @@ interface ProgressContextValue {
   state: ProgressState;
   stats: LearningStats;
   /**
-   * 学习结果上报：options.packId 指定卡片所属卡组，
+   * 学习结果上报：options.packId 指定卡片所属词库，
    * 生词本这类不在 words/todayWords/packWords 列表里的单词必须显式传入，
-   * 否则会落到当前选中的卡组。
+   * 否则会落到当前选中的词库。
    */
   recordReview: (
     wordId: number,
@@ -205,7 +205,7 @@ interface ProgressContextValue {
   /**
    * 批量记录学习结果（列表页「全部记住」）:
    * 一次批量上报 + 一次本地状态刷新，失败会抛出异常。
-   * options.packId 同上，整批单词共用一个卡组。
+   * options.packId 同上，整批单词共用一个词库。
    */
   recordReviews: (
     wordIds: number[],
@@ -242,7 +242,7 @@ interface ProgressContextValue {
   ) => Promise<Word[]>;
   clearTodayWords: () => void;
 
-  // 子卡组单词列表 (来自 /anki/pack/{id}/learn-by-menu.json，不带 type 过滤)
+  // 子词库单词列表 (来自 /anki/pack/{id}/learn-by-menu.json，不带 type 过滤)
   packWords: Word[];
   packWordsPackId: number | null;
   isLoadingPackWords: boolean;
@@ -251,26 +251,26 @@ interface ProgressContextValue {
     options?: { cat?: string; sub?: string }
   ) => Promise<Word[]>;
 
-  // 从市场安装成功的卡组（供分类页刷新我的卡组并切换到该卡组）
+  // 从市场安装成功的词库（供分类页刷新我的词库并切换到该词库）
   installedPack: RemotePack | null;
   setInstalledPack: (pack: RemotePack | null) => void;
 
-  // 本地学习导致的卡组「已掌握数量」变化量: packId -> delta
+  // 本地学习导致的词库「已掌握数量」变化量: packId -> delta
   // 服务端 remembered_card_count 不会实时变化，用它做本地增量校正
   packMasteredDelta: Record<number, number>;
   resetPackMasteredDelta: () => void;
   /**
-   * 只清掉指定卡组的增量（服务端数据已把这些变化算进去时使用），
-   * 其余卡组的增量保留，避免服务端异步汇总滞后时数字回落。
+   * 只清掉指定词库的增量（服务端数据已把这些变化算进去时使用），
+   * 其余词库的增量保留，避免服务端异步汇总滞后时数字回落。
    */
   dropPackMasteredDelta: (packIds: number[]) => void;
 
-  // 当前显示的顶层卡组（分类页顶部切换的那个），其它页面可直接读取
+  // 当前显示的顶层词库（分类页顶部切换的那个），其它页面可直接读取
   currentTopPack: RemotePack | null;
   setCurrentTopPack: (pack: RemotePack | null) => void;
-  /** 仅清除内存中的选中卡组（不影响「上次记住的卡组」本地记录） */
+  /** 仅清除内存中的选中词库（不影响「上次记住的词库」本地记录） */
   resetCurrentTopPack: () => void;
-  /** 读取上次记住的卡组（供启动/重新登录时优先选中） */
+  /** 读取上次记住的词库（供启动/重新登录时优先选中） */
   readRememberedTopPack: () => Promise<{ id: number; name: string } | null>;
 
   // 认证
@@ -300,20 +300,20 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [todayWordsTotal, setTodayWordsTotal] = useState(0);
   const [todayWordsPackId, setTodayWordsPackId] = useState<number | null>(null);
   const [isLoadingTodayWords, setIsLoadingTodayWords] = useState(false);
-  // 今日单词请求代次：只让最后一次请求落地，避免旧卡组的结果盖掉新卡组的数据
+  // 今日单词请求代次：只让最后一次请求落地，避免旧词库的结果盖掉新词库的数据
   const todayWordsReqRef = useRef(0);
 
-  // 子卡组单词列表
+  // 子词库单词列表
   const [packWords, setPackWords] = useState<Word[]>([]);
   const [packWordsPackId, setPackWordsPackId] = useState<number | null>(null);
   const [isLoadingPackWords, setIsLoadingPackWords] = useState(false);
 
-  // 市场安装成功的卡组
+  // 市场安装成功的词库
   const [installedPack, setInstalledPack] = useState<RemotePack | null>(null);
-  // 各卡组已掌握数量的本地增量
+  // 各词库已掌握数量的本地增量
   const [packMasteredDelta, setPackMasteredDelta] = useState<Record<number, number>>({});
 
-  // 当前显示的顶层卡组
+  // 当前显示的顶层词库
   const [currentTopPack, setCurrentTopPackState] = useState<RemotePack | null>(null);
 
   // 认证
@@ -383,7 +383,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setWordSource('local');
     setCurrentPack(null);
     setCurrentTopPackState(null);
-    // 会员额度、生词本默认卡组 id 也是按账号的
+    // 会员额度、生词本默认词库 id 也是按账号的
     clearVipGateCache();
     clearBookmarkPackCache();
 
@@ -471,8 +471,8 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   /**
-   * 单词所属卡组 id：优先取单词自带的 packageId（服务端 learn-by-menu 返回），
-   * 找不到时退回当前卡组。
+   * 单词所属词库 id：优先取单词自带的 packageId（服务端 learn-by-menu 返回），
+   * 找不到时退回当前词库。
    */
   const resolvePackId = useCallback(
     (wordId: number): number | undefined => {
@@ -536,10 +536,10 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await saveState(newState);
 
     // 异步上报学习结果到服务端 (type: 0=重来 1=困难 2=一般 3=容易)
-    // 优先使用单词所属卡组 id (learn-by-menu 返回的 package_id)
+    // 优先使用单词所属词库 id (learn-by-menu 返回的 package_id)
     const packId = options?.packId ?? resolvePackId(wordId);
 
-    // 本地累计该卡组「已掌握数量」的变化量，供分类卡组列表等处实时刷新
+    // 本地累计该词库「已掌握数量」的变化量，供分类词库列表等处实时刷新
     if (packId && masteredDelta !== 0) {
       setPackMasteredDelta((prev) => ({
         ...prev,
@@ -574,12 +574,12 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const now = Date.now();
     const today = getTodayString();
 
-    // ① 先算出每个单词的新进度与「卡组掌握数」变化量
+    // ① 先算出每个单词的新进度与「词库掌握数」变化量
     const progressMap: Record<number, WordProgress> = { ...state.progressMap };
     const todaySet = new Set(state.todayLearnedIds);
-    /** 卡组 id -> 需要上报的卡片 id */
+    /** 词库 id -> 需要上报的卡片 id */
     const groups = new Map<number, number[]>();
-    /** 卡组 id -> 掌握数量的变化量 */
+    /** 词库 id -> 掌握数量的变化量 */
     const deltas = new Map<number, number>();
 
     for (const wordId of ids) {
@@ -589,7 +589,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       todaySet.add(wordId);
 
       const packId = options?.packId ?? resolvePackId(wordId);
-      if (!packId) continue; // 本地词库没有卡组 id，只更新本地进度
+      if (!packId) continue; // 本地词库没有词库 id，只更新本地进度
       const cardIds = groups.get(packId);
       if (cardIds) cardIds.push(wordId);
       else groups.set(packId, [wordId]);
@@ -685,12 +685,12 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await saveState(cleared);
   };
 
-  /** 重新从服务端拉取卡组后调用：服务端数据即最新，清空本地增量避免重复累计 */
+  /** 重新从服务端拉取词库后调用：服务端数据即最新，清空本地增量避免重复累计 */
   const resetPackMasteredDelta = useCallback(() => {
     setPackMasteredDelta({});
   }, []);
 
-  /** 只丢弃指定卡组的「已掌握」增量：这些卡组的服务端数字已经包含本地学习结果 */
+  /** 只丢弃指定词库的「已掌握」增量：这些词库的服务端数字已经包含本地学习结果 */
   const dropPackMasteredDelta = useCallback((packIds: number[]) => {
     if (!packIds.length) return;
     setPackMasteredDelta((prev) => {
@@ -706,7 +706,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, []);
 
-  /** 切换当前显示的顶层卡组，并记住它（下次进入优先显示） */
+  /** 切换当前显示的顶层词库，并记住它（下次进入优先显示） */
   const setCurrentTopPack = useCallback(
     async (pack: RemotePack | null) => {
       setCurrentTopPackState(pack);
@@ -724,14 +724,14 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   /**
-   * 仅清除内存中的选中状态，保留「上次记住的卡组」本地记录。
-   * 用于退出登录 / 回到本地词库等场景，避免把记住的卡组一并删掉。
+   * 仅清除内存中的选中状态，保留「上次记住的词库」本地记录。
+   * 用于退出登录 / 回到本地词库等场景，避免把记住的词库一并删掉。
    */
   const resetCurrentTopPack = useCallback(() => {
     setCurrentTopPackState(null);
   }, []);
 
-  /** 读取当前账号上次记住的卡组 id + name */
+  /** 读取当前账号上次记住的词库 id + name */
   const readRememberedTopPack = useCallback(async (): Promise<{ id: number; name: string } | null> => {
     try {
       let raw = await AsyncStorage.getItem(topPackKey);
@@ -754,7 +754,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const exportProgressData = (): string => JSON.stringify(state, null, 2);
 
-  // 加载远程词库（同时切换当前卡组，保持与首页「我的卡组」一致）
+  // 加载远程词库（同时切换当前词库，保持与首页「我的词库」一致）
   const loadPackWords = useCallback(async (pack: RemotePack) => {
     setIsLoadingWords(true);
     try {
@@ -763,10 +763,10 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setWords(remoteWords);
         setWordSource('remote');
       }
-      // 词库为空也要切换卡组，否则用户在界面看不到任何反馈
+      // 词库为空也要切换词库，否则用户在界面看不到任何反馈
       const cp = { id: pack.id, name: pack.name };
       setCurrentPack(cp);
-      // 复用首页顶部「我的卡组」的当前卡组状态（内存 + 本地记忆一起更新）
+      // 复用首页顶部「我的词库」的当前词库状态（内存 + 本地记忆一起更新）
       setCurrentTopPack(pack);
       await AsyncStorage.setItem(packKey, JSON.stringify(cp));
     } finally {
@@ -778,7 +778,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setWords(localWords);
     setWordSource('local');
     setCurrentPack(null);
-    // 只清内存，保留「上次记住的卡组」，退出后重新登录仍能恢复
+    // 只清内存，保留「上次记住的词库」，退出后重新登录仍能恢复
     resetCurrentTopPack();
     setTodayWords([]);
     setTodayWordsTotal(0);
@@ -787,7 +787,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [resetCurrentTopPack, packKey]);
 
   /**
-   * 拉取某个卡组的今日学习单词列表
+   * 拉取某个词库的今日学习单词列表
    * GET /anki/pack/{packId}/learn-by-menu.json?start=0&limit=50&type=0&type=1&type=2&type=3
    */
   const loadTodayWords = useCallback(
@@ -805,8 +805,8 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsLoadingTodayWords(true);
       try {
         const { words: list, total } = await packLibrary.fetchTodayWords(packId, options);
-        // 等待期间可能已经为另一个卡组发了新请求（例如焦点换到了别的分类卡组），
-        // 这时要丢弃旧结果，否则旧卡组的单词会盖回来，今日学习区一直停在旧卡组上
+        // 等待期间可能已经为另一个词库发了新请求（例如焦点换到了别的分类词库），
+        // 这时要丢弃旧结果，否则旧词库的单词会盖回来，今日学习区一直停在旧词库上
         if (req === todayWordsReqRef.current) {
           setTodayWords(list);
           setTodayWordsTotal(total);
@@ -827,7 +827,7 @@ export const ProgressProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   /**
-   * 拉取某个子卡组的全部单词列表（分页合并，最多 5 页 / 500 词）
+   * 拉取某个子词库的全部单词列表（分页合并，最多 5 页 / 500 词）
    * GET /anki/pack/{packId}/learn-by-menu.json?start=0&limit=100
    */
   const loadPackWordList = useCallback(

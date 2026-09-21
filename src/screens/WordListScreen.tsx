@@ -46,7 +46,7 @@ const FLY_DURATION = 560;
 const TODAY_WORD_LIMIT = 50;
 /** 今日学习卡片的过滤：0 未学 / 1、2、3 学习中（已记住 4 不再出现） */
 const TODAY_WORD_TYPES = [0, 1, 2, 3];
-/** 卡组 summary（分类词汇辨析）缓存，避免反复请求；key = 账号id#卡组id */
+/** 词库 summary（分类词汇辨析）缓存，避免反复请求；key = 账号id#词库id */
 const summaryCache = new Map<string, string>();
 
 /**
@@ -79,7 +79,7 @@ type PendingMark =
   | { type: 'single'; word: Word; from: Rect }
   | { type: 'all'; words: Word[] };
 
-/** 同一父卡组下的兄弟卡组（用于「学习下一个卡组」） */
+/** 同一父词库下的兄弟词库（用于「学习下一个词库」） */
 interface SiblingPack {
   id: number;
   name: string;
@@ -113,7 +113,7 @@ function extractPhonetic(note: string): string {
 /**
  * 去掉例句部分：
  *  - 本地词库的「【例】...」行
- *  - 远程卡组的「例句:」标题行及其后的「• ...」条目行
+ *  - 远程词库的「例句:」标题行及其后的「• ...」条目行
  * 单词列表只留助记与辨析，例句在背诵页看。
  */
 function noteWithoutSentences(note: string): string {
@@ -444,10 +444,10 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
   const rootRef = useRef<any>(null);
   const bottomRef = useRef<any>(null);
 
-  /** 「分类词汇辨析」：卡组详情里的 summary */
+  /** 「分类词汇辨析」：词库详情里的 summary */
   const [packSummary, setPackSummary] = useState('');
 
-  /** 当前列表所属卡组 id（今日学习 / 子卡组），非这两种来源时为 undefined */
+  /** 当前列表所属词库 id（今日学习 / 子词库），非这两种来源时为 undefined */
   const listPackId = useMemo(
     () => (source === 'today' ? todayWordsPackId : source === 'pack' ? packWordsPackId : undefined),
     [source, todayWordsPackId, packWordsPackId]
@@ -455,22 +455,22 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
 
   const title =
     routeTitle || (subCategory ? `${category} · ${subCategory}` : category || '全部单词');
-  /** 切到下一个卡组后的临时标题（兄弟列表还没刷新回来时先用它） */
+  /** 切到下一个词库后的临时标题（兄弟列表还没刷新回来时先用它） */
   const [titleOverride, setTitleOverride] = useState<string | null>(null);
 
-  /** 顶层卡组名：拉取下一个卡组的单词时要作为 cat 回传给服务端 */
+  /** 顶层词库名：拉取下一个词库的单词时要作为 cat 回传给服务端 */
   const topPackName = currentTopPack?.name || '';
 
-  /** 同一父卡组下的兄弟卡组：学完当前卡组后用来继续学习下一个 */
+  /** 同一父词库下的兄弟词库：学完当前词库后用来继续学习下一个 */
   const [siblingPacks, setSiblingPacks] = useState<SiblingPack[]>([]);
-  /** 当前卡组在兄弟列表中的位置，-1 表示未知（不显示按钮） */
+  /** 当前词库在兄弟列表中的位置，-1 表示未知（不显示按钮） */
   const [packCursor, setPackCursor] = useState(-1);
-  /** 正在拉取下一个卡组的单词 */
+  /** 正在拉取下一个词库的单词 */
   const [switchingPack, setSwitchingPack] = useState(false);
 
   /**
-   * 标题优先跟随「当前卡组」：从背词页继续学习下一个卡组后返回，
-   * 列表标题也能同步成新的卡组名。
+   * 标题优先跟随「当前词库」：从背词页继续学习下一个词库后返回，
+   * 列表标题也能同步成新的词库名。
    */
   const currentSiblingTitle =
     packCursor >= 0 && Number(siblingPacks[packCursor]?.id) === Number(listPackId)
@@ -478,7 +478,7 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
       : null;
   const displayTitle = currentSiblingTitle || titleOverride || title;
 
-  // 基础词汇池：source = 'today' 今日学习单词；'pack' 子卡组单词列表；默认全部词库
+  // 基础词汇池：source = 'today' 今日学习单词；'pack' 子词库单词列表；默认全部词库
   const baseWords = useMemo(() => {
     const pool = source === 'today' ? todayWords : source === 'pack' ? packWords : words;
     return pool.filter((w) => {
@@ -515,10 +515,10 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
     [pendingWords, masteredWords]
   );
 
-  /** 当前账号 id：卡组 summary 等缓存要按账号隔离，避免切换账号串内容 */
+  /** 当前账号 id：词库 summary 等缓存要按账号隔离，避免切换账号串内容 */
   const accountId = String((user as any)?.id ?? '');
 
-  /** 拉取「分类词汇辨析」（卡组 summary），带缓存 */
+  /** 拉取「分类词汇辨析」（词库 summary），带缓存 */
   useEffect(() => {
     const targetId = Number(listPackId || baseWords[0]?.packageId || 0);
     if (!targetId) {
@@ -562,7 +562,7 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
         startWordId: startWordId ?? ids[0],
         title: displayTitle,
         packId: packId ?? undefined,
-        // 背词页「继续学习下一个卡组」要按同样的来源拉取单词
+        // 背词页「继续学习下一个词库」要按同样的来源拉取单词
         listSource: source,
       });
     },
@@ -570,8 +570,8 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
   );
 
   /**
-   * 按父卡组反查兄弟卡组，支持「学习下一个卡组」。
-   * 顶层卡组或接口失败时静默降级为不显示该按钮。
+   * 按父词库反查兄弟词库，支持「学习下一个词库」。
+   * 顶层词库或接口失败时静默降级为不显示该按钮。
    */
   useEffect(() => {
     const currentPackId = Number(listPackId || 0);
@@ -597,7 +597,7 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
         setSiblingPacks(packs.map((p) => ({ id: Number(p.id), name: p.name })));
         setPackCursor(packs.findIndex((p) => Number(p.id) === currentPackId));
       } catch {
-        // 拿不到兄弟卡组就不提供「学习下一个卡组」
+        // 拿不到兄弟词库就不提供「学习下一个词库」
         if (!cancelled) {
           setSiblingPacks([]);
           setPackCursor(-1);
@@ -609,13 +609,13 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
     };
   }, [listPackId]);
 
-  /** 下一个待学习的兄弟卡组 */
+  /** 下一个待学习的兄弟词库 */
   const nextPack: SiblingPack | undefined =
     packCursor >= 0 ? siblingPacks[packCursor + 1] : undefined;
 
   /**
-   * 学习下一个卡组:
-   * 依次向后找第一个「还有未记住单词」的卡组，拉取它的单词后原地替换当前列表，
+   * 学习下一个词库:
+   * 依次向后找第一个「还有未记住单词」的词库，拉取它的单词后原地替换当前列表，
    * 不进入背诵模式，用户继续在列表里挑词学习。
    */
   const handleStudyNextPack = async () => {
@@ -627,7 +627,7 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
 
       while (cursor < siblingPacks.length) {
         const pack = siblingPacks[cursor];
-        // 今日学习来源只取今日待学卡片；子卡组来源取整组单词（与打开列表时一致）
+        // 今日学习来源只取今日待学卡片；子词库来源取整组单词（与打开列表时一致）
         const list =
           source === 'today'
             ? await loadTodayWords(pack.id, {
@@ -648,19 +648,19 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
       if (!target) {
         setDialog({
           title: '太棒了',
-          message: '后面的卡组都没有待学习的单词了',
+          message: '后面的词库都没有待学习的单词了',
           showCancel: false,
         });
         return;
       }
 
-      // 单词已写进 store，列表会原地换成该卡组的数据
+      // 单词已写进 store，列表会原地换成该词库的数据
       setTitleOverride(target.name);
       showToast(`已切换到「${target.name}」`);
     } catch (e: any) {
       setDialog({
         title: '加载失败',
-        message: e?.message || '获取下一个卡组的单词失败，请重试',
+        message: e?.message || '获取下一个词库的单词失败，请重试',
         showCancel: false,
       });
     } finally {
@@ -998,7 +998,7 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
           /* 中部：未记住的单词列表 */
           <View style={styles.middleWrap}>
             <FlatList
-              // 切换卡组时重建，列表自动回到顶部
+              // 切换词库时重建，列表自动回到顶部
               key={`pending-${listPackId ?? 'all'}`}
               data={pendingWords}
               keyExtractor={(item) => String(item.id)}
@@ -1022,7 +1022,7 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
                   <Text style={styles.emptyTitle}>全部记住啦</Text>
                   <Text style={styles.emptyText}>当前列表的单词都已标记为已记住</Text>
 
-                  {/* 全部记住后可原地切换到下一个卡组继续学 */}
+                  {/* 全部记住后可原地切换到下一个词库继续学 */}
                   {nextPack ? (
                     <TouchableOpacity
                       style={[styles.nextPackCard, switchingPack && styles.nextPackCardDisabled]}
@@ -1040,7 +1040,7 @@ export const WordListScreen: React.FC<WordListScreenProps> = ({ route, navigatio
 
                       <View style={styles.nextPackBody}>
                         <Text style={styles.nextPackTitle}>
-                          {switchingPack ? '正在加载…' : '学习下一个卡组'}
+                          {switchingPack ? '正在加载…' : '学习下一个词库'}
                         </Text>
                         <Text
                           style={styles.nextPackDesc}
@@ -1451,7 +1451,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textMuted,
   },
-  // 全部记住后的「学习下一个卡组」：卡片式入口
+  // 全部记住后的「学习下一个词库」：卡片式入口
   nextPackCard: {
     flexDirection: 'row',
     alignItems: 'center',

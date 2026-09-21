@@ -45,12 +45,12 @@ import { playRememberedSound } from '../utils/effectSound';
 import { checkVipGate, clearVipGateCache } from '../services/vipGate';
 
 /**
- * 生词本复习页（与「分类卡组背词页」相互独立）
+ * 生词本复习页（与「分类词库背词页」相互独立）
  * - 从生词本列表点击第 N 个单词进入，队列从该词开始，可连续复习到列表末尾
  * - 列表每次只取 BOOKMARK_PAGE_SIZE(20) 个，剩余不足 PREFETCH_THRESHOLD 张时
  *   自动预取下一页，用户一直往后翻也不会断档
  * - 底部四个档位直接对应服务端 type：困难 0 / 一般 1 / 容易 3 / 已记住 4，
- *   只上报给生词本卡组，不走分类卡组的 SRS 记忆算法
+ *   只上报给生词本词库，不走分类词库的 SRS 记忆算法
  */
 
 /** 队列剩余多少张卡片时开始预取下一页 */
@@ -192,9 +192,9 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
   /** 换到下一张时是否直接展开答案（由 studySetting.show_answer 派生） */
   const [defaultShowAnswer, setDefaultShowAnswer] = useState(false);
   const defaultShowAnswerRef = useRef(false);
-  /** 卡组档位设置：每日上限与困难/一般/容易的天数，来自 pack.conf */
+  /** 词库档位设置：每日上限与困难/一般/容易的天数，来自 pack.conf */
   const [packBtns, setPackBtns] = useState<PackBtnsSetting>(DEFAULT_PACK_BTNS_SETTING);
-  /** 卡组详情整份数据：PATCH 保存设置时服务端要求整包回传 */
+  /** 词库详情整份数据：PATCH 保存设置时服务端要求整包回传 */
   const packDetailRef = useRef<Record<string, any>>({});
   /** pack.conf 解析后的对象：保存时只改 pack_btns_setting，其它字段原样带回 */
   const packConfRef = useRef<Record<string, any>>({});
@@ -359,7 +359,7 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
     })();
   }, []);
 
-  /** 拉取卡组详情（含 conf 里的档位设置）：失败时保持默认档位，不阻断背词 */
+  /** 拉取词库详情（含 conf 里的档位设置）：失败时保持默认档位，不阻断背词 */
   useEffect(() => {
     (async () => {
       try {
@@ -518,16 +518,16 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
     });
   };
 
-  /** 确定：档位设置写回卡组 conf（整包 PATCH），学习过程设置写本地 */
+  /** 确定：档位设置写回词库 conf（整包 PATCH），学习过程设置写本地 */
   const handleSaveSetting = async () => {
     const dayLimit = Number(draftDayLimit);
     if (!Number.isFinite(dayLimit) || dayLimit < 1) {
       showToast('每日添加新学习卡片至少 1 个');
       return;
     }
-    // 卡组详情没拉到就没法整包回传，避免把服务端字段清掉
+    // 词库详情没拉到就没法整包回传，避免把服务端字段清掉
     if (!Number(packDetailRef.current?.id)) {
-      showToast('卡组信息还在加载，请稍后重试');
+      showToast('词库信息还在加载，请稍后重试');
       return;
     }
 
@@ -549,7 +549,7 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
         btns,
       };
       const conf = { ...packConfRef.current, pack_btns_setting: nextBtnSetting };
-      // 服务端要求回传整个卡组对象，只改 conf（与 web 的 modifyPackage(this.pack) 一致）
+      // 服务端要求回传整个词库对象，只改 conf（与 web 的 modifyPackage(this.pack) 一致）
       const nextPack = { ...packDetailRef.current, conf: JSON.stringify(conf) };
 
       await saveBookmarkPackDetail(nextPack);
@@ -624,7 +624,7 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
         }
       }
 
-      // 生词本复习独立上报：把档位对应的 type 报给生词本卡组
+      // 生词本复习独立上报：把档位对应的 type 报给生词本词库
       await reportBookmarkReview(currentWord.id, BOOKMARK_REVIEW_TYPE[grade]);
       if (grade === 'remembered') playRememberedSound();
       setLearnedInSessionCount((prev) => prev + 1);
@@ -935,7 +935,7 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
         )}
       </TouchableOpacity>
 
-      {/* 底部四档：稍后重来 + 困难/一般/容易（名称与天数取自卡组设置，web 的 .card_operate） */}
+      {/* 底部四档：稍后重来 + 困难/一般/容易（名称与天数取自词库设置，web 的 .card_operate） */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={[styles.opItem, styles.opDefault]}
@@ -972,7 +972,7 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
           })}
       </View>
 
-      {/* 卡片设置：档位设置回写卡组 conf，学习过程设置存本地（对齐 web Setting.vue） */}
+      {/* 卡片设置：档位设置回写词库 conf，学习过程设置存本地（对齐 web Setting.vue） */}
       <Modal
         visible={settingsVisible}
         transparent
@@ -997,7 +997,7 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* 卡组设置：每日上限 + 三个档位的间隔天数 */}
+              {/* 词库设置：每日上限 + 三个档位的间隔天数 */}
               <View style={styles.settingItem}>
                 <Text style={styles.settingItemText}>每日添加新学习卡片</Text>
                 <TextInput
@@ -1085,7 +1085,7 @@ export const BookmarkStudyScreen: React.FC<BookmarkStudyScreenProps> = ({ route,
             {/* 保存失败提示就地显示，不叠第二层弹窗 */}
             {settingError ? <Text style={styles.settingErrorText}>{settingError}</Text> : null}
 
-            {/* 底部：取消 / 确定，「确定」才写回卡组与本地 */}
+            {/* 底部：取消 / 确定，「确定」才写回词库与本地 */}
             <View style={styles.settingFooter}>
               <TouchableOpacity
                 style={[styles.settingFooterBtn, styles.settingFooterCancel]}

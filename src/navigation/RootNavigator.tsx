@@ -25,7 +25,7 @@ const Stack = createNativeStackNavigator();
 
 /**
  * 导航结构：单栈，无底部 tab。
- * 首页（Home）承载用户信息 / 生词本 / 我的卡组三段内容与电脑端插件说明，
+ * 首页（Home）承载用户信息 / 生词本 / 我的词库三段内容与电脑端插件说明，
  * 生词本列表（Bookmarks）与「我的」（Profile）作为二级页面从首页进入。
  */
 export function RootNavigator() {
@@ -58,10 +58,10 @@ export function RootNavigator() {
           options={{ animation: 'slide_from_bottom' }}
         />
 
-        {/* 词库 / 卡组 / 会员 */}
+        {/* 词库 / 词库 / 会员 */}
         <Stack.Screen name="BookSelect" component={BookSelectScreen} />
         <Stack.Screen name="Market" component={MarketScreen} />
-        {/* 我的卡组列表 → 某个卡组的分类卡组列表（学习入口） */}
+        {/* 我的词库列表 → 某个词库的分类词库列表（学习入口） */}
         <Stack.Screen name="MyPacks" component={MyPacksScreen} />
         <Stack.Screen name="SubPacks" component={SubPacksScreen} />
         <Stack.Screen

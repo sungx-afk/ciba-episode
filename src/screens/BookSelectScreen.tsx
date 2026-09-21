@@ -37,19 +37,19 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
   const [deletingPackId, setDeletingPackId] = useState<number | null>(null);
   /** 统一弹窗状态：确认/提示一律走 ConfirmDialog，不再使用系统 Alert */
   const [dialog, setDialog] = useState<DialogPayload | null>(null);
-  /** 待确认删除的卡组（ConfirmDialog 用） */
+  /** 待确认删除的词库（ConfirmDialog 用） */
   const [pendingDelete, setPendingDelete] = useState<RemotePack | null>(null);
 
   const loadPacks = useCallback(async () => {
     setLoading(true);
     try {
-      // 与首页顶部「我的卡组」下拉同一份数据: GET /anki/pack.json (parentId = 0)
+      // 与首页顶部「我的词库」下拉同一份数据: GET /anki/pack.json (parentId = 0)
       const { packs } = await packLibrary.fetchMyPacks({ start: 0, limit: 100 });
       setPacks(packs);
     } catch (e: any) {
       setDialog({
         title: '加载失败',
-        message: e?.message || '无法获取我的卡组',
+        message: e?.message || '无法获取我的词库',
         showCancel: false,
       });
     } finally {
@@ -57,7 +57,7 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
     }
   }, []);
 
-  // 每次进入本页都重新拉取：从卡组市场添加成功后返回，列表能立刻拿到新卡组
+  // 每次进入本页都重新拉取：从词库市场添加成功后返回，列表能立刻拿到新词库
   useFocusEffect(
     useCallback(() => {
       loadPacks();
@@ -80,7 +80,7 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
 
     setLoadingPackId(pack.id);
     try {
-      // 列表本身就是「我的卡组」，无需再走安装流程
+      // 列表本身就是「我的词库」，无需再走安装流程
       await loadPackWords(pack);
       navigation.goBack();
     } catch (e: any) {
@@ -106,23 +106,23 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
         Number(currentTopPack?.id) === Number(pack.id) ||
         Number(currentPack?.id) === Number(pack.id);
 
-      // 删的不是当前在用的卡组，列表移除即可
+      // 删的不是当前在用的词库，列表移除即可
       if (!isCurrent) {
-        showToast('已删除卡组');
+        showToast('已删除词库');
         return;
       }
 
-      // 删掉的是当前卡组：先清掉旧焦点，再把焦点交给列表第一个
+      // 删掉的是当前词库：先清掉旧焦点，再把焦点交给列表第一个
       resetCurrentTopPack();
       const next = rest[0];
 
       if (!next) {
-        // 全删没了：引导去卡组市场重新添加
-        showToast('已删除卡组');
+        // 全删没了：引导去词库市场重新添加
+        showToast('已删除词库');
         setDialog({
-          title: '卡组已清空',
-          message: '当前没有可用卡组，去卡组市场添加新的分类背单词卡组吧',
-          confirmText: '去卡组市场',
+          title: '词库已清空',
+          message: '当前没有可用词库，去词库市场添加新的分类背单词词库吧',
+          confirmText: '去词库市场',
           cancelText: '稍后再说',
           onConfirm: () => {
             setDialog(null);
@@ -135,14 +135,14 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
       setDeletingPackId(null);
       setLoadingPackId(next.id);
       try {
-        // 先把首页显示的顶层卡组切过去，否则首页没有焦点，子卡组与今日学习都会为空
+        // 先把首页显示的顶层词库切过去，否则首页没有焦点，子词库与今日学习都会为空
         await setCurrentTopPack(next);
         await loadPackWords(next);
-        showToast(`已删除卡组，已切换到「${next.name}」`);
+        showToast(`已删除词库，已切换到「${next.name}」`);
       } catch (e: any) {
         setDialog({
           title: '切换词库失败',
-          message: e?.message || `已删除原卡组，切换到「${next.name}」失败，请手动选择`,
+          message: e?.message || `已删除原词库，切换到「${next.name}」失败，请手动选择`,
           showCancel: false,
         });
       } finally {
@@ -176,7 +176,7 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
       {loading ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>正在加载我的卡组...</Text>
+          <Text style={styles.loadingText}>正在加载我的词库...</Text>
         </View>
       ) : (
         <FlatList
@@ -201,7 +201,7 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
           //   </View>
           // }
           renderItem={({ item }) => {
-            // 与首页顶部「我的卡组」保持一致：优先按当前顶层卡组判定
+            // 与首页顶部「我的词库」保持一致：优先按当前顶层词库判定
             const isActive =
               [currentTopPack?.id, currentPack?.id].filter((id) => id !== undefined && id !== null)
                 .some((id) => Number(id) === Number(item.id));
@@ -253,7 +253,7 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
                   onPress={() => handleDeletePack(item)}
                   disabled={deletingPackId !== null || loadingPackId !== null}
                   activeOpacity={0.8}
-                  accessibilityLabel="删除卡组"
+                  accessibilityLabel="删除词库"
                 >
                   {deletingPackId === item.id ? (
                     <ActivityIndicator size="small" color={Colors.coral} />
@@ -271,7 +271,7 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
               </View>
             );
           }}
-          // 有数据也一直展示入口：方便直接再去市场补卡组，不用先删空
+          // 有数据也一直展示入口：方便直接再去市场补词库，不用先删空
           ListFooterComponent={
             packs.length > 0 ? (
               <TouchableOpacity
@@ -283,8 +283,8 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
                   <Ionicons name="add" size={20} color={Colors.primary} />
                 </View>
                 <View style={styles.addMoreTextWrap}>
-                  <Text style={styles.addMoreTitle}>去卡组市场添加更多卡组</Text>
-                  <Text style={styles.addMoreHint}>市场里有分类单词组块，可继续扩充我的卡组</Text>
+                  <Text style={styles.addMoreTitle}>去词库市场添加更多词库</Text>
+                  <Text style={styles.addMoreHint}>市场里有分类单词组块，可继续扩充我的词库</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
               </TouchableOpacity>
@@ -293,13 +293,13 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="library-outline" size={48} color={Colors.border} />
-              <Text style={styles.emptyText}>我的卡组还是空的</Text>
-              <Text style={styles.emptyHint}>先去卡组市场添加词库，之后就能在这里直接切换</Text>
+              <Text style={styles.emptyText}>我的词库还是空的</Text>
+              <Text style={styles.emptyHint}>先去词库市场添加词库，之后就能在这里直接切换</Text>
               <TouchableOpacity
                 style={styles.retryBtn}
                 onPress={() => navigation.navigate('Market', { firstSetup: true })}
               >
-                <Text style={styles.retryText}>去卡组市场</Text>
+                <Text style={styles.retryText}>去词库市场</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondaryBtn} onPress={loadPacks}>
                 <Text style={styles.secondaryText}>刷新</Text>
@@ -311,8 +311,8 @@ export const BookSelectScreen: React.FC<BookSelectScreenProps> = ({ navigation }
 
       <ConfirmDialog
         visible={pendingDelete !== null}
-        title="删除卡组"
-        message={`确定删除「${pendingDelete?.name || ''}」吗？该卡组及其下分类卡组、学习记录会一并删除，且不可恢复。`}
+        title="删除词库"
+        message={`确定删除「${pendingDelete?.name || ''}」吗？该词库及其下分类词库、学习记录会一并删除，且不可恢复。`}
         onConfirm={() => {
           const target = pendingDelete;
           setPendingDelete(null);
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 13,
   },
-  // 列表底部的「去卡组市场」入口（空态时在 ListEmptyComponent 里另有一枚）
+  // 列表底部的「去词库市场」入口（空态时在 ListEmptyComponent 里另有一枚）
   addMoreBtn: {
     flexDirection: 'row',
     alignItems: 'center',

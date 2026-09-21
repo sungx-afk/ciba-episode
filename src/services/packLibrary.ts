@@ -73,7 +73,7 @@ interface MarketPacksResponse {
   total?: number;
 }
 
-/** GET /anki/pack.json 响应 (我的卡组 / 分类卡组) */
+/** GET /anki/pack.json 响应 (我的词库 / 分类词库) */
 interface PackListResponse {
   result: number;
   msg?: string;
@@ -126,13 +126,13 @@ class PackLibrary {
   /** 英语词库分类 id (cibaen.com 上英语类目的 catId) */
   static readonly ENGLISH_CAT_ID = 4;
   static readonly STORE_APPROVED = 2;
-  /** 分类背单词卡组类型：只有该类型的卡组才出现在「我的卡组」中 */
+  /** 分类背单词词库类型：只有该类型的词库才出现在「我的词库」中 */
   static readonly PACK_TYPE_QIAN_WEN_CAT = 'qian_wen_cat';
 
   /**
-   * 我的卡组: GET /anki/pack.json
-   *  - parentId = 0 (不传) 时返回顶层卡组，用于顶部切换
-   *  - parentId = 父卡组 id 时返回其下的分类卡组
+   * 我的词库: GET /anki/pack.json
+   *  - parentId = 0 (不传) 时返回顶层词库，用于顶部切换
+   *  - parentId = 父词库 id 时返回其下的分类词库
    */
   async fetchPackList(
     options: {
@@ -155,7 +155,7 @@ class PackLibrary {
     return { packs: rsp.packs || [], total: rsp.total || 0 };
   }
 
-  /** 顶部切换用的顶层卡组 (parentId = 0)，只保留 pack_type = qian_wen_cat */
+  /** 顶部切换用的顶层词库 (parentId = 0)，只保留 pack_type = qian_wen_cat */
   async fetchMyPacks(
     options: { start?: number; limit?: number } = {}
   ): Promise<PackListResult> {
@@ -166,7 +166,7 @@ class PackLibrary {
     return { packs: filtered, total: filtered.length };
   }
 
-  /** 某个父卡组下的分类卡组 (parentId = 父卡组 id) */
+  /** 某个父词库下的分类词库 (parentId = 父词库 id) */
   async fetchSubPacks(
     parentId: number,
     options: { start?: number; limit?: number; rememberTypes?: number[] } = {}
@@ -175,9 +175,9 @@ class PackLibrary {
   }
 
   /**
-   * 子卡组全部单词列表（用于单词列表页）:
+   * 子词库全部单词列表（用于单词列表页）:
    * GET /anki/pack/{packId}/learn-by-menu.json?start=0&limit=100
-   * 不带 type 参数时返回该卡组下全部卡片
+   * 不带 type 参数时返回该词库下全部卡片
    */
   async fetchPackWords(
     packId: number,
@@ -195,7 +195,7 @@ class PackLibrary {
   /**
    * 今日学习单词列表:
    * GET /anki/pack/{packId}/learn-by-menu.json?start=0&limit=50&type=0&type=1&type=2&type=3
-   * types 为空数组时返回该卡组下全部卡片
+   * types 为空数组时返回该词库下全部卡片
    */
   async fetchTodayWords(
     packId: number,
@@ -217,10 +217,10 @@ class PackLibrary {
   }
 
   /**
-   * 卡组市场列表:
+   * 词库市场列表:
    * GET /anki/pack/in-store.json?start=0&limit=50&catId=4&storeStatus=2
    *     &sorters=[{"direction":"desc","column":"order_num"}]
-   * 只保留 pack_type = qian_wen_cat 的分类背单词卡组
+   * 只保留 pack_type = qian_wen_cat 的分类背单词词库
    */
   async fetchMarketPacks(
     options: { start?: number; limit?: number; catId?: number; storeStatus?: number } = {}
@@ -286,7 +286,7 @@ class PackLibrary {
   }
 
   /**
-   * 删除我的卡组:
+   * 删除我的词库:
    * POST /anki/pack/{packId}.json  body: _method=DELETE (form-urlencoded)
    */
   async deletePack(packId: number): Promise<void> {

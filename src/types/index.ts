@@ -12,7 +12,7 @@ export interface Word {
   note: string;
   /** 远程 note id，删除卡片要按 note 删除（DELETE /anki/note/{id}.json） */
   noteId?: number;
-  /** 远程卡组 id，用于学习结果上报 */
+  /** 远程词库 id，用于学习结果上报 */
   packageId?: number;
   /** 远程卡片学习状态：0 未学 / 1、2、3 学习中 / 4 已记住（已掌握） */
   type?: number;

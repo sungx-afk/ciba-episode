@@ -23,7 +23,7 @@ const USER = {
   loginName: 'demo',
 };
 
-/** 顶部「我的卡组」（parentId=0，服务端只返回 pack_type=qian_wen_cat） */
+/** 顶部「我的词库」（parentId=0，服务端只返回 pack_type=qian_wen_cat） */
 const TOP_PACKS = [
   {
     id: 9001,
@@ -57,7 +57,7 @@ const TOP_PACKS = [
   },
 ];
 
-/** 9001 下的分类卡组（parentId=9001） */
+/** 9001 下的分类词库（parentId=9001） */
 const SUB_PACKS = [
   { id: 9101, name: '天文与宇宙', card_count: 128, remembered_card_count: 96, today_card_count: 8, today_learned_card_count: 3, parent_id: 9001 },
   { id: 9102, name: '地质与地理', card_count: 142, remembered_card_count: 88, today_card_count: 6, today_learned_card_count: 2, parent_id: 9001 },
@@ -81,7 +81,7 @@ const WORDS = [
   ['terrestrial', 'təˈrestriəl', 'adj. 陆地的；地球的', 'terr（土地）+ estrial → 属于土地的', 'Plants evolved from aquatic species to terrestrial forms.', '植物从水生种类进化到陆生形态。'],
 ];
 
-/** 普通卡组：note.data 是 JSON 字符串 */
+/** 普通词库：note.data 是 JSON 字符串 */
 const CARDS = WORDS.map((w, i) => ({
   id: 7000 + i,
   package_id: 9101,
@@ -163,10 +163,10 @@ export default {
 
     if (p.endsWith('/users/my.json')) return { result: 0, user: USER };
 
-    // 生词本第一步：取默认卡组 id
+    // 生词本第一步：取默认词库 id
     if (p.includes('/anki/pack/flag/')) return { result: 0, pack: { id: BOOKMARK_PACK_ID } };
 
-    // 卡组列表：parentId=0 是「我的卡组」，>0 是分类卡组
+    // 词库列表：parentId=0 是「我的词库」，>0 是分类词库
     if (p.endsWith('/anki/pack.json')) {
       const packs = parentId >= 1 ? SUB_PACKS : TOP_PACKS;
       return { result: 0, packs, total: packs.length };
@@ -200,12 +200,12 @@ export default {
     // 1) 分类首页：直接就是数据态
     { name: '01-home', file: '01-home.png', steps: [] },
 
-    // 2) 单词列表：点子卡组的「单词列表」
+    // 2) 单词列表：点子词库的「单词列表」
     {
       name: '02-wordlist',
       file: '02-wordlist.png',
       steps: [
-        { waitText: '分类卡组' },
+        { waitText: '分类词库' },
         { click: '单词列表', afterMs: 2000 },
         { waitText: '搜索单词、释义或词根助记...' },
       ],

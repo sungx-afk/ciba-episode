@@ -18,10 +18,10 @@ import { ProgressBar } from '../components/ProgressBar';
 import { Header } from '../components/Header';
 import { ConfirmDialog, DialogPayload } from '../components/ConfirmDialog';
 
-/** 分类卡组分页大小 */
+/** 分类词库分页大小 */
 const SUB_PAGE_SIZE = 30;
 /**
- * 首屏拿到空列表时的补偿重试：刚安装 / 刚同步的卡组，服务端可能还没把分类卡组生成完，
+ * 首屏拿到空列表时的补偿重试：刚安装 / 刚同步的词库，服务端可能还没把分类词库生成完，
  * 此时接口会返回 total=0 的空列表，多试几次就能拿到真实数据。
  */
 const SUB_FIRST_RETRY = 3;
@@ -37,12 +37,12 @@ interface SubPacksScreenProps {
 }
 
 /**
- * 分类卡组列表页：
- * 「我的卡组」→ 某个卡组 → 这里，列出该卡组下的分类卡组，点分类进单词列表开始学习。
+ * 分类词库列表页：
+ * 「我的词库」→ 某个词库 → 这里，列出该词库下的分类词库，点分类进单词列表开始学习。
  */
 export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, route }) => {
   const packId = Number(route?.params?.packId);
-  const packName: string = route?.params?.packName || '分类卡组';
+  const packName: string = route?.params?.packName || '分类词库';
   const initialPack = route?.params?.pack as RemotePack | undefined;
 
   const {
@@ -67,7 +67,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   /** 还有下一页可拉：以「上一页是否满页 / 是否有新增」为准，不单看服务端 total */
   const [hasMore, setHasMore] = useState(true);
-  /** 列表拿空但顶层卡组显示有词：服务端还在生成，界面上给「准备中」而不是「暂无」 */
+  /** 列表拿空但顶层词库显示有词：服务端还在生成，界面上给「准备中」而不是「暂无」 */
   const [syncing, setSyncing] = useState(false);
   /** 统一弹窗状态：确认/提示一律走 ConfirmDialog */
   const [dialog, setDialog] = useState<DialogPayload | null>(null);
@@ -77,7 +77,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
   const focusedOnceRef = useRef(false);
   /** 列表镜像：分页游标与到底判断都读它，避免闭包里拿到过期的 subPacks */
   const listRef = useRef<RemotePack[]>([]);
-  /** 顶层卡组详情镜像：判断「列表空但卡组有词」时读它 */
+  /** 顶层词库详情镜像：判断「列表空但词库有词」时读它 */
   const packRef = useRef<RemotePack | null>(initialPack ?? null);
   /** 连续空页计数：连着两页拉不到新数据就停，防止 total 偏大时反复空转 */
   const emptyPageRef = useRef(0);
@@ -102,7 +102,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
       .catch(() => {});
   }, [packId, initialPack, setCurrentTopPack]);
 
-  /** 刷新顶层卡组自身的统计（总词数 / 已记住） */
+  /** 刷新顶层词库自身的统计（总词数 / 已记住） */
   const refreshPackStats = useCallback(async () => {
     try {
       const detail = await packLibrary.fetchPackDetail(packId);
@@ -137,7 +137,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
         listRef.current = merged;
         setSubPacks(merged);
 
-        // total 可能偏小（卡组刚安装、服务端统计未就绪）：已加载条数优先
+        // total 可能偏小（词库刚安装、服务端统计未就绪）：已加载条数优先
         const serverTotal = res.total || 0;
         const effectiveTotal = Math.max(serverTotal, merged.length);
         setTotal(effectiveTotal);
@@ -162,7 +162,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
         }
       } catch (e: any) {
         if (gen !== reqGenRef.current) return;
-        setErrorMsg(e?.message || '加载分类卡组失败');
+        setErrorMsg(e?.message || '加载分类词库失败');
       } finally {
         if (gen === reqGenRef.current) {
           setLoading(false);
@@ -193,7 +193,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
   );
 
   /**
-   * 首屏加载：卡组刚安装时服务端可能还没生成完分类卡组，
+   * 首屏加载：词库刚安装时服务端可能还没生成完分类词库，
    * 接口会先返回空列表（total=0），这里静默补几次，避免用户看到「暂无分类」却怎么刷都刷不出来。
    */
   const loadFirstPage = useCallback(
@@ -202,7 +202,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
       let gen = reqGenRef.current;
       let tries = 0;
       while (tries < SUB_FIRST_RETRY && listRef.current.length === 0) {
-        // 顶层卡组一个词都没有时不重试：那就是真的没有分类，不是没生成完
+        // 顶层词库一个词都没有时不重试：那就是真的没有分类，不是没生成完
         if (!(Number(packRef.current?.card_count) > 0)) break;
         if (reqGenRef.current !== gen) return; // 期间已有别的请求接管
         tries += 1;
@@ -255,12 +255,12 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
     load(listRef.current.length, currentTypes);
   };
 
-  /** 打开某个分类卡组的单词列表 */
+  /** 打开某个分类词库的单词列表 */
   const handleOpenSubPack = async (sub: RemotePack) => {
     if (!isLoggedIn) {
       setDialog({
         title: '需要登录',
-        message: '请先登录后再学习在线卡组',
+        message: '请先登录后再学习在线词库',
         confirmText: '去登录',
         onConfirm: () => {
           setDialog(null);
@@ -285,7 +285,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
     }
   };
 
-  /** 顶层卡组的整体单词进度 */
+  /** 顶层词库的整体单词进度 */
   const packProgress = useMemo(() => {
     const totalWords = Number(pack?.card_count) || 0;
     const remembered = Math.max(
@@ -383,7 +383,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
           </View>
         </View>
         <ProgressBar progress={packProgress.progress} height={8} color={Colors.success} />
-        <Text style={styles.summaryHint}>点分类卡组开始背词</Text>
+        <Text style={styles.summaryHint}>点分类词库开始背词</Text>
       </View>
 
       <View style={styles.tabs}>
@@ -429,7 +429,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
-        title="分类卡组"
+        title="分类词库"
         subtitle={packName}
         onBack={() => navigation.goBack()}
       />
@@ -437,7 +437,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
       {loading && subPacks.length === 0 ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>正在加载分类卡组...</Text>
+          <Text style={styles.loadingText}>正在加载分类词库...</Text>
         </View>
       ) : (
         <FlatList
@@ -465,7 +465,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
                 <ActivityIndicator size="small" color={Colors.primary} />
               </View>
             ) : !hasMore && subPacks.length > 0 ? (
-              <Text style={styles.footerText}>已显示全部分类卡组</Text>
+              <Text style={styles.footerText}>已显示全部分类词库</Text>
             ) : null
           }
           ListEmptyComponent={
@@ -486,7 +486,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
                 syncing ? (
                   <>
                     <Ionicons name="time-outline" size={48} color={Colors.border} />
-                    <Text style={styles.emptyText}>卡组刚添加，分类还在准备中</Text>
+                    <Text style={styles.emptyText}>词库刚添加，分类还在准备中</Text>
                     <Text style={styles.emptyHint}>服务端生成需要一点时间，可下拉刷新或点下面重试</Text>
                     <TouchableOpacity
                       style={styles.retryBtn}
@@ -500,7 +500,7 @@ export const SubPacksScreen: React.FC<SubPacksScreenProps> = ({ navigation, rout
                   <>
                     <Ionicons name="albums-outline" size={48} color={Colors.border} />
                     <Text style={styles.emptyText}>
-                      {tab === 'remembered' ? '暂无已记住的分类卡组' : '暂无未记住的分类卡组'}
+                      {tab === 'remembered' ? '暂无已记住的分类词库' : '暂无未记住的分类词库'}
                     </Text>
                   </>
                 )

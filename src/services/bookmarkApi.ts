@@ -3,7 +3,7 @@ import { Word, WordSentenceItem } from '../types';
 
 /**
  * 生词本列表获取（两步）
- *   1) /anki/pack/flag/default_movie_pack       -> 默认卡组 id（缓存一次）
+ *   1) /anki/pack/flag/default_movie_pack       -> 默认词库 id（缓存一次）
  *   2) /anki/pack/{packId}/learn-by-menu.json   -> 分页拿卡片
  */
 
@@ -13,7 +13,7 @@ export const BOOKMARK_PAGE_SIZE = 20;
  * 生词本页面的三个分组：按服务端卡片 type 过滤。
  *  - 学习中：type = 0 未学 / 1、2、3 学习中
  *  - 已记住：type = 4
- *  - 全部：不带 type，服务端返回该卡组下全部卡片
+ *  - 全部：不带 type，服务端返回该词库下全部卡片
  */
 export const BOOKMARK_LEARNING_TYPES = [0, 1, 2, 3];
 export const BOOKMARK_MASTERED_TYPES = [4];
@@ -28,12 +28,12 @@ const SORTERS = JSON.stringify([{ direction: 'desc', column: 'id' }]);
 const MOVIE_TO_CARD_PATH = '/anki/movie2card';
 
 /**
- * 把单词加进服务端生词本（默认「电影卡组」）
+ * 把单词加进服务端生词本（默认「电影词库」）
  * POST /anki/movie2card.json  wordName=xxx&englishCaption=xxx
  *
  * 注意：后端每次调用都会新建一条 note + card，只支持新增、**没有删除接口**，
  * 所以「取消收藏」不能反过来调它，只能改本地状态。
- * 非会员卡组满 100 张时后端会抛会员错误，由调用方提示用户。
+ * 非会员词库满 100 张时后端会抛会员错误，由调用方提示用户。
  */
 export async function addWordToBookmark(wordName: string, englishCaption?: string): Promise<void> {
   const name = String(wordName || '').trim();
@@ -49,7 +49,7 @@ export async function addWordToBookmark(wordName: string, englishCaption?: strin
 export interface FetchBookmarkedParams {
   start?: number;
   limit?: number;
-  /** 卡片状态过滤，数组会展开成 type=0&type=1...；不传表示该卡组下全部卡片 */
+  /** 卡片状态过滤，数组会展开成 type=0&type=1...；不传表示该词库下全部卡片 */
   types?: number[];
 }
 
@@ -61,12 +61,12 @@ export interface BookmarkedWordPage {
 
 let cachedPackId = 0;
 
-/** 切换账号后调用：默认卡组 id 是按账号的，必须失效重取 */
+/** 切换账号后调用：默认词库 id 是按账号的，必须失效重取 */
 export function clearBookmarkPackCache() {
   cachedPackId = 0;
 }
 
-/** 1. 取默认卡组 id */
+/** 1. 取默认词库 id */
 export async function fetchDefaultMoviePackId(force = false): Promise<number> {
   if (!force && cachedPackId) return cachedPackId;
 
@@ -74,7 +74,7 @@ export async function fetchDefaultMoviePackId(force = false): Promise<number> {
   const packId = Number(rsp?.pack?.id ?? rsp?.packId ?? rsp?.id ?? rsp?.referenceId);
 
   if (!Number.isFinite(packId) || packId <= 0) {
-    throw new APIError(-1, '未获取到默认卡组');
+    throw new APIError(-1, '未获取到默认词库');
   }
   cachedPackId = packId;
   return packId;
@@ -145,7 +145,7 @@ function cardToWord(card: any): Word {
     sentences,
     // 服务端学习状态：0 未学 / 1、2、3 学习中 / 4 已记住，列表据此分组展示
     type: typeof card?.type === 'number' ? card.type : undefined,
-    // 学习结果需要按卡片所属卡组上报，否则会落到当前选中的其它卡组
+    // 学习结果需要按卡片所属词库上报，否则会落到当前选中的其它词库
     ...(packageId ? { packageId } : {}),
   };
 }
@@ -169,7 +169,7 @@ export async function fetchBookmarkedWords(
   return { words, total, hasMore: start + words.length < total };
 }
 
-/** 已缓存的生词本卡组 id（学习结果上报要用），未取过时为 0 */
+/** 已缓存的生词本词库 id（学习结果上报要用），未取过时为 0 */
 export function getCachedBookmarkPackId(): number {
   return cachedPackId;
 }
@@ -177,7 +177,7 @@ export function getCachedBookmarkPackId(): number {
 export interface NotebookStats {
   packId: number;
   name: string;
-  /** 每日学习目标：卡组详情 conf.pack_btns_setting.day_limit */
+  /** 每日学习目标：词库详情 conf.pack_btns_setting.day_limit */
   dayLimit: number;
   /** 今日已学习的生词数量（服务端 today_learned_card_count） */
   learnedToday: number;
@@ -189,7 +189,7 @@ export interface NotebookStats {
   notRemembered: number;
 }
 
-/** 从卡组 conf 里解析每日学习目标：conf 是 JSON 字符串，day_limit 在 pack_btns_setting 下 */
+/** 从词库 conf 里解析每日学习目标：conf 是 JSON 字符串，day_limit 在 pack_btns_setting 下 */
 function parseDayLimit(conf: unknown): number {
   let parsed: any = conf;
   if (typeof conf === 'string') {
@@ -252,8 +252,8 @@ export async function fetchNotebookStudyWords(
 
 /**
  * 生词本复习的评分 -> 服务端 type。
- * 与「分类卡组背词页」的 SRS 评分（again/hard/good/easy）是两套东西：
- * 生词本复习只把用户选的档位原样上报，不参与分类卡组的记忆算法。
+ * 与「分类词库背词页」的 SRS 评分（again/hard/good/easy）是两套东西：
+ * 生词本复习只把用户选的档位原样上报，不参与分类词库的记忆算法。
  */
 export const BOOKMARK_REVIEW_TYPE = {
   hard: 0, // 困难
@@ -265,8 +265,8 @@ export const BOOKMARK_REVIEW_TYPE = {
 export type BookmarkGrade = keyof typeof BOOKMARK_REVIEW_TYPE;
 
 /**
- * 上报生词本复习结果：只报给生词本卡组（默认电影卡组），
- * 不写本地 SRS 进度、不影响分类卡组的掌握数统计。
+ * 上报生词本复习结果：只报给生词本词库（默认电影词库），
+ * 不写本地 SRS 进度、不影响分类词库的掌握数统计。
  */
 export async function reportBookmarkReview(wordId: number, type: number): Promise<void> {
   const packId = await fetchDefaultMoviePackId();
@@ -332,7 +332,7 @@ export function daysToDelay(days: number): number {
   return (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0) * DAY_MS;
 }
 
-/** 解析卡组 conf（JSON 字符串）里的档位设置，缺字段用默认值补齐 */
+/** 解析词库 conf（JSON 字符串）里的档位设置，缺字段用默认值补齐 */
 export function parsePackBtnsSetting(conf: unknown): PackBtnsSetting {
   let parsed: any = conf;
   if (typeof conf === 'string') {
@@ -367,7 +367,7 @@ export function parsePackBtnsSetting(conf: unknown): PackBtnsSetting {
   };
 }
 
-/** 把卡组 conf（JSON 字符串）解析成对象，解析失败返回空对象 */
+/** 把词库 conf（JSON 字符串）解析成对象，解析失败返回空对象 */
 export function parsePackConf(conf: unknown): Record<string, any> {
   if (conf && typeof conf === 'object') return conf as Record<string, any>;
   if (typeof conf !== 'string' || !conf) return {};
@@ -380,8 +380,8 @@ export function parsePackConf(conf: unknown): Record<string, any> {
 }
 
 /**
- * 取卡组详情：GET /anki/pack/{id}.json
- * 档位设置存在 pack.conf 里，保存时服务端要求回传整个卡组对象，
+ * 取词库详情：GET /anki/pack/{id}.json
+ * 档位设置存在 pack.conf 里，保存时服务端要求回传整个词库对象，
  * 所以这里把 pack 整份留下来，PATCH 时再带上。
  */
 export async function fetchBookmarkPackDetail(packId?: number): Promise<Record<string, any>> {
@@ -392,13 +392,13 @@ export async function fetchBookmarkPackDetail(packId?: number): Promise<Record<s
 }
 
 /**
- * 保存卡组设置：PATCH /anki/pack/{id}.json
- * 必须回传整个卡组对象（conf 里只改 pack_btns_setting），
+ * 保存词库设置：PATCH /anki/pack/{id}.json
+ * 必须回传整个词库对象（conf 里只改 pack_btns_setting），
  * 与 web 端 modifyPackage(this.pack) 一致；只传 id + conf 服务端会缺字段。
  */
 export async function saveBookmarkPackDetail(pack: Record<string, any>): Promise<void> {
   const id = Number(pack?.id) || 0;
-  if (!id) throw new APIError(-1, '卡组信息不完整，无法保存设置');
+  if (!id) throw new APIError(-1, '词库信息不完整，无法保存设置');
   await api.patch(`/anki/pack/${id}.json`, pack);
 }
 
@@ -419,7 +419,7 @@ export async function fetchNotebookDayLimit(): Promise<number> {
 
 /**
  * 保存生词本每日学习目标（每日添加新学习卡片数量）。
- * 先取最新卡组详情再整包 PATCH，只改 conf.pack_btns_setting.day_limit，
+ * 先取最新词库详情再整包 PATCH，只改 conf.pack_btns_setting.day_limit，
  * conf 里的复习档位 btns、alert_time 以及 pack 的其它字段都原样带回，避免丢数据。
  */
 export async function saveNotebookDayLimit(dayLimit: number): Promise<number> {

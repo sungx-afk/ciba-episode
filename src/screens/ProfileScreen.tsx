@@ -45,11 +45,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   /**
    * 生词本学习目标：即生词本设置里的「每日添加新学习卡片数量」，
-   * 存在生词本卡组 conf.pack_btns_setting.day_limit（服务端字段，非本地设置）。
+   * 存在生词本词库 conf.pack_btns_setting.day_limit（服务端字段，非本地设置）。
    */
   const [dayLimit, setDayLimit] = useState(0);
   const [loadingDayLimit, setLoadingDayLimit] = useState(true);
-  const [savingDayLimit, setSavingDayLimit] = useState(false);
+  /**
+   * 学习目标保存走乐观更新：点了立刻选中，请求后台跑。
+   * dayLimitReqRef 记请求序号，保证只有最后一次点击的结果落到界面；
+   * dayLimitSavingRef 标记是否有请求在飞，飞行期间跳过 focus 刷新，
+   * 否则切回「我的」tab 会拉到服务端旧值，把刚点的选项闪回去。
+   */
+  const dayLimitReqRef = useRef(0);
+  const dayLimitSavingRef = useRef(false);
   /** 自定义输入框里的值；在别处（如生词本学习页）设成非档位数字时回填到这里 */
   const [customLimit, setCustomLimit] = useState('');
 
@@ -86,18 +93,32 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         dayLimitFocusedRef.current = true;
         return;
       }
+      // 保存请求还在飞时跳过：此时服务端可能还是旧值，拉回来会把刚点的选项闪回去
+      if (dayLimitSavingRef.current) return;
       loadDayLimit();
     }, [loadDayLimit])
   );
 
-  /** 切换生词本学习目标：整包回传卡组，只改 day_limit，其它字段不动 */
+  /**
+   * 切换生词本学习目标：整包回传词库，只改 day_limit，其它字段不动。
+   *
+   * 乐观更新：点击后立刻把选中态（焦点）落到 UI，不等接口返回；请求后台跑，
+   * 只有最后一次点击的返回值会写回界面，失败则回滚到点击前的值并提示。
+   */
   const handleDayLimitChange = async (goal: number) => {
-    if (savingDayLimit || dayLimit === goal) return;
-    setSavingDayLimit(true);
+    if (dayLimit === goal) return;
+    const prevLimit = dayLimit;
+    const req = ++dayLimitReqRef.current;
+    const isLatest = () => req === dayLimitReqRef.current;
+
+    setDayLimit(goal); // ① 立刻给焦点反馈，不等网络
+    dayLimitSavingRef.current = true;
     try {
       const saved = await saveNotebookDayLimit(goal);
-      setDayLimit(saved);
+      // 期间又点了别的档位时不覆盖新选择，只认最后一次的结果
+      if (isLatest()) setDayLimit(saved);
     } catch (e: any) {
+      if (isLatest()) setDayLimit(prevLimit);
       setDialog({
         title: '设置失败',
         message: e?.message || '生词本学习目标保存失败，请稍后重试',
@@ -106,7 +127,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         onConfirm: () => setDialog(null),
       });
     } finally {
-      setSavingDayLimit(false);
+      if (isLatest()) dayLimitSavingRef.current = false;
     }
   };
 
@@ -357,7 +378,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   style={[styles.goalChip, isSelected && styles.goalChipActive]}
                   onPress={() => handleDayLimitChange(goal)}
                   activeOpacity={0.7}
-                  disabled={loadingDayLimit || savingDayLimit}
+                  disabled={loadingDayLimit}
                 >
                   <Text style={[styles.goalChipText, isSelected && styles.goalChipTextActive]}>
                     {goal} 词
@@ -377,7 +398,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               returnKeyType="done"
               onSubmitEditing={handleCustomSubmit}
               onBlur={handleCustomSubmit}
-              editable={!loadingDayLimit && !savingDayLimit}
+              editable={!loadingDayLimit}
             />
           </View>
         </View>

@@ -87,9 +87,12 @@ export const PayApi = {
     };
   },
 
-  /** 会员套餐（价签）列表，tag_version 可让后端按端区分价格 */
+  /**
+   * 会员套餐（价签）列表，tag_version 可让后端按端区分价格；
+   * type=episode 用于后端按产品线（episode App）下发对应的价签。
+   */
   async listPriceTags(tagVersion = 'ios_v1'): Promise<PriceTag[]> {
-    const res = await api.get('/pay/price_tags', { tag_version: tagVersion });
+    const res = await api.get('/pay/price_tags', { tag_version: tagVersion, type: 'episode' });
     return Array.isArray(res?.list) ? res.list : [];
   },
 
